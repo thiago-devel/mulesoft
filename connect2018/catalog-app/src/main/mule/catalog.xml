@@ -1,0 +1,3425 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:java="http://www.mulesoft.org/schema/mule/java" xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting" xmlns:spring="http://www.springframework.org/schema/beans" xmlns:tls="http://www.mulesoft.org/schema/mule/tls" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.1.xsd  http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd http://www.mulesoft.org/schema/mule/java http://www.mulesoft.org/schema/mule/java/current/mule-java.xsd http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd">
+    <http:listener-config name="catalog-httpsListenerConfig" doc:name="HTTP Listener config">
+        <http:listener-connection host="0.0.0.0" port="${https.port}" protocol="HTTPS">
+            <tls:context>
+                <tls:key-store type="jks" path="keystore.jks" keyPassword="password" password="password" />
+            </tls:context>
+        </http:listener-connection>
+    </http:listener-config>
+    <apikit:config name="catalog-config" raml="catalog.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" />
+    <global-property doc:name="Global Property" doc:id="cd95a23d-4e19-4b02-bf18-d3e826980fef" name="https.port" value="8082" />
+    <flow name="catalog-main">
+        <http:listener config-ref="catalog-httpsListenerConfig" path="/api/*" doc:name="Listener">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body><![CDATA[#[payload]]]></http:body>
+                <http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:router config-ref="catalog-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:BAD_REQUEST">
+                <ee:transform xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Bad request"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">400</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:METHOD_NOT_ALLOWED">
+                <ee:transform xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Method not allowed"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">405</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_ACCEPTABLE">
+                <ee:transform xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not acceptable"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">406</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:UNSUPPORTED_MEDIA_TYPE">
+                <ee:transform xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Unsupported media type"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">415</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_IMPLEMENTED">
+                <ee:transform xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not Implemented"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">501</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="catalog-console">
+        <http:listener config-ref="catalog-httpsListenerConfig" path="/console/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body><![CDATA[#[payload]]]></http:body>
+                <http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:console config-ref="catalog-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="patch:\catalog\products\(product_id):catalog-config">
+        <logger level="INFO" message="patch:\catalog\products\(product_id):catalog-config" doc:name="Logger" />
+    </flow>
+    <flow name="get:\catalog\products:catalog-config">
+        <ee:transform doc:name="All products" doc:id="c028a564-e0e4-464c-ae86-2b4fe31ed166">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+[
+  {
+    id: 7890001,
+    price: {
+      value: 47.95,
+      currency: "USD"
+    },
+    "discountedPrice": {
+        "value": 39.88,
+        "currency": "USD"
+    },
+    name: "Eureka Cypress Sleeping Bag",
+    description: "Made from the same warm material as the adult size for backpacking and family camping, Eureka's Cyprus Junior is a three-season sleeping bag with toasty ThermaShield insulation that's temperature rated at 15°F. The boy-specific junior size and fit reduces unnecessary weight and bulk while on the trail.",
+    keywords: [
+      "Eureka!", 
+      "Children's", 
+      "Mummy", 
+      "15° F", 
+      "With Pocket", 
+      "With Stuff Sack"
+    ],
+    copy: "Eureka 15°F Cypress Junior Sleeping Bag - Mummy (for Boys) - Grey/Green ( )",
+    image: {
+      id: 8540001,
+      url: "https://github.com/connect2018/product-images/blob/master/sleepingbag_green.png?raw=true"
+    },
+    company: {
+      id: 4907999,
+      name: "The-House.com",
+      address: {
+        country: "USA",
+        state: "MINNESOTA",
+        city: "Minneapolis",
+        street_address: "200 S Owasso Blvd E St Paul",
+        zip: 55117
+      }
+    },
+    category: "Sleeping Bags",
+    review: {
+      reviews: [
+        {
+          reviewer_name: "Backcountry.com",
+          review: "Just got this in yesterday for our little guy, but he won't get a chance to try it. It's just not packable. Compressed it measures 1'' in diameter and 13'' long. It won't fit in our packs so it's going back. Bummer because the price is really great. I'm sure it would work great for car camping or slumber parties, but if you need to pack look elsewhere.",
+          date: "2015-06-10",
+          rate: 2
+        }, 
+        {
+          reviewer_name: "sunnysports.com",
+          review: "I am 5'2'' and about 100 lbs so I ordered the children's bag. There's still room to grow!! I haven't tested it out yet but I can't wait to try it in my hammock on Mt. Washington!",
+          date: "2015-06-10",
+          rate: 4
+        }
+      ],
+      averageRate: 3
+    }
+  }, 
+  {
+    id: 7890002,
+    price: {
+      value: 40.90,
+      currency: "USD"
+    },
+    "discountedPrice": {
+        "value": 29.88,
+        "currency": "USD"
+    },
+    name: "Goal Zero Lighthouse 400",
+    description: "This 400-lumen (max. setting) lantern can be charged three ways: from the sun using Goal Zero solar panels (not included), from USB or manually with the hand crank built into the top. Full charge lasts up to 48 hours on the Li-NMC battery.",
+    keywords: [
+      "Goal Zero", 
+      "Lighthouse", 
+      "Camping light", 
+      "lantern"
+    ],
+    copy: "Goal Zero Lighthouse 400 - Camping light - LED - 3 W - warm white light - 3500 K - lantern",
+    image: {
+      id: 8540002,
+      url: "https://encrypted-tbn2.gstatic.com/shopping?q=tbn:ANd9GcTcg1_pBwGoE4XItBXqfhkq8sqCkoBs6ZLKX1JQv9gOxl3M-2vlHF-VX6j-SEMWnOPTuzLQ0VPV&usqp=CAY"
+    },
+    company: {
+      id: 4907998,
+      name: "REI",
+      address: {
+        country: "USA",
+        state: "CALIFORNIA",
+        city: "San Francisco",
+        street_address: "840 Brannan St",
+        zip: 94103
+      }
+    },
+    category: "Lantern",
+    review: {
+      reviews: [
+        {
+          reviewer_name: "goalzero.com",
+          review: "These lanterns are choked full of features. I would recommend these. The lantern features themselves are excellent then add on the USB hub and charging by sun, USB and a hand crank you have a lantern that is second to none. Cons: it seems the internal bettieries are not user replaceable or at least it is not document as user replaceable. The on board hanging hook/handle has slid out on me seems like there should be more tension to keep it in place. None of these Cons are crictal to me so I would buy this lantern again.",
+          date: "2016-10-02",
+          rate: 4
+        }, 
+        {
+          reviewer_name: "mec.ca",
+          review: "I bought this lantern about 2 yeara ago and have not regretted it. The battery has plenty power, it will easily last 2-3 nights without recharging. The light Britney's is exceptional. On the camp table it will easily give nice light to the campsite. The light source is adjustable from 180 to 360 degrees. I have not used the USB port but just having it is a comfort, knowing I can charge my phone etc. The lantern is of really high quality. There other features I didn't not comment on, all are good. I would recommend this lantern",
+          date: "2017-05-15",
+          rate: 5
+        }
+      ],
+      averageRate: 4.6
+    }
+  }, 
+  {
+    id: 7890003,
+    price: {
+      value: 199.00,
+      currency: "USD"
+    },
+    "discountedPrice": {
+        "value": 179.88,
+        "currency": "USD"
+    },
+    name: "Goal Zero Yeti 150 Solar Generator External Battery Pack/Power Inverter",
+    description: "Goal Zero Yeti 150 Solar Generator, 22004 A plug-and-play, silent, fume-free generator for emergencies, camping, or wherever you need power. The Goal Zero Yeti 150 Solar Generator is a gas-free source of portable power to keep lights, phones and laptops powered on through any situation.",
+    keywords: [
+      "GOAL ZERO", 
+      "Solar", 
+      "160 watt", 
+      "With Inverter", 
+      "Portable"
+    ],
+    copy: "Goal Zero Yeti 150 Solar Generator External Battery Pack/Power Inverter - 14 Ah - 14-29V",
+    image: {
+      id: 8540003,
+      url: "https://encrypted-tbn3.gstatic.com/shopping?q=tbn:ANd9GcTqPH1wK0UGXcI55H1rSwKukYH4_AfAU40OH_noVqt4M_E95UTOyZvkdAvMYE_tNfeV-c3Cao8&usqp=CAE"
+    },
+    company: {
+      id: 4907998,
+      name: "REI",
+      address: {
+        country: "USA",
+        state: "CALIFORNIA",
+        city: "San Francisco",
+        street_address: "840 Brannan St",
+        zip: 94103
+      }
+    },
+    category: "Battery",
+    review: {
+      reviews: [
+        {
+          reviewer_name: "goalzero.com",
+          review: "I bought this on sale for the camping event around I think Memorial day. I have used it 3 different times now camping out on the island in Casco Bay in Maine. I was worried about it after the 2nd day because it did not seem to charge the same as it did the 1st. We did use it heavier on this last 4 day event, Charging 2 smart phones, 1 iPad2, 1 lighthouse 250, and we ran 3 of the new Light-a-Life 350's on it for probably 1 hour making and eating dinner each night. It recharged to full the 1st night with my Nomad 20 and Nomad 7 in tandem. The 2nd day it recharged to 100% again, the third day it was better than 80% and the last day I did not bother as we had to pack up. It never dropped below 60% until the last day and we used it to beat the band. Admittedly I do want to step up to the Yeti 400 for something with more power on hand. But that's cause I am too Boy scout I want to bring something out there for 4 days and be able to not have to worry about solar if the weather is not good for solar. But I can't complain this power pack delivered and held up great.",
+          date: "2015-11-18",
+          rate: 5
+        }, 
+        {
+          reviewer_name: "Home Depot",
+          review: "I wanted this generator but was nervous about purchasing it. If it didn't work or something went wrong, how would I return it. Viewed this item on many other sites and decided to purchase with HD because I could easily return it if needed. I've had the generator for almost a month. This generator is SO QUIET! So far I charged a lamp, I Pad and phone. There is nothing to do, it comes right out of the box ready to go. You may need to charge a little but mine arrived charged. It's compact, easy to move around and has many ports. At this point I am considering upgrading to the larger one but wanted to test this out before investing more money. I gave it four stars only because I've had it such a short time and I'm still testing it, but so far so good. Hurricane Sandy was a wake up call us. Please take a moment to look around, we have hurricanes, earthquakes, power outages etc. The times are changing make sure your family is prepared, spiritually, mentally, physically. If the grid goes down it will be nice to have power and the ability to keep in touch with your family.",
+          date: "2015-04-07",
+          rate: 4
+        }
+      ],
+      averageRate: 4.3
+    }
+  },
+  {
+        "id": 7890006,
+        "price": {
+            "value": 74.99,
+            "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 70.88,
+            "currency": "USD"
+        },
+        "name": "Coleman Lantern",
+        "description": "Take the convenience of Three lights in one with you with the Coleman Trifecta LED Lantern. During an emergency, pop one of the three lights off the base for a personal flashlight. They recharge once theyre back on the base for hands-free light. The lantern runs cool so its always safe to touch, even when its been on for hours. Model # 2000013867 Features: Even distribution of light Choose your power, 4D batteries, or CPX 6 rechargeable Hi/Low for optimal light output 3 removable panels",
+        "keywords": [],
+        "copy": "Coleman CPX 6 Triago Lantern 61450663",
+        "image": {
+        "id": 8540006,
+        "url": "https://encrypted-tbn1.gstatic.com/shopping?q=tbn:ANd9GcQyMPBCmFkdvvSdN1AiCJCQ9-B7kIVriJd-Ich_bszorXEUUIaWtCN88Yb0kmLFCLw05gLylZ4&usqp=CAY"
+        },
+        "company": {
+        "id": 4907995,
+        "name": "CampSaver.com",
+        "address" : {
+            "country": "USA",
+            "state": "UTAH",
+            "city": "Nibley",
+            "street_address": "2280 Heritage Dr",
+            "zip": 84321
+            }
+        },
+        "category": "Lantern",
+        "review": {
+        "reviews": [
+            {
+            "reviewer_name": "cabelas.com",
+            "review": "I bought this lantern for camping, a fantastic idea that you can essentially break the lantern apart and everyone grab a piece. No more having the kids fight over the light. Long battery life, and I purchased the rechargeable battery pack as well. This is the second re-chargeable Coleman lantern I have purchased this year, and I have been VERY pleased with each purchase.",
+            "date": "2014-10-04",
+            "rate": 5
+            },{
+            "reviewer_name": "thesportsauthority.com",
+            "review": "Gave as gift. Recipient very pleased",
+            "date": "2016-02-05",
+            "rate": 4
+            }
+        ],
+        "averageRate": 4.2
+        }
+    },
+    {
+        "id": 7890007,
+        "price": {
+            "value": 71.99,
+            "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 52.88,
+            "currency": "USD"
+        },
+        "name": "Coleman Lantern",
+        "description": "Uses 8 D batteries, not included. Imported.",
+        "keywords": [],
+        "copy": "Coleman Quad LED Lantern",
+        "image": {
+        "id": 8540007,
+        "url": "https://encrypted-tbn3.gstatic.com/shopping?q=tbn:ANd9GcRNTfRuy1Ds8s7yJD_8PLCB2gIbPHF9H-rTBka9-Dkd0_uTD-6ZguxiB2A39wnFOHLOLWzsu_U&usqp=CAY"
+        },
+        "company": {
+            "id": 4907995,
+            "name": "CampSaver.com",
+            "address" : {
+                "country": "USA",
+                "state": "UTAH",
+                "city": "Nibley",
+                "street_address": "2280 Heritage Dr",
+                "zip": 84321
+            }
+        },
+        "category": "Lantern",
+        "review": {
+        "reviews": [
+            {
+            "reviewer_name": "walmart.com",
+            "review": "This Lantern is very good at handling power outages and other low lighting issues. Since it has 4 separate removable light units that can be carried or placed in different locations as needed. When you put them back onto the base nit, the lights recharge so they are ready for the next time you need them. OR you can simply use the entire lantern as a single unit. Lightweight and easy to handle, it is a very good light.",
+            "date": "2016-04-02",
+            "rate": 4
+            },{
+            "reviewer_name": "MidwayUSA",
+            "review": "outstanding lantern, started using this lantern when my son was a cub scout! The first set of batteries lasted for a year, the 8 d batteries in the base charge the NICADS in the four removable lanterns. When they no longer hold a charge it is telling you it is time to change the main batteries, but the lantern will continue to work for days after this! We were able to send one lantern with the boys in each tent, and recharge them the next day because you know they left the light on all night! he is now a boy scout and the lantern convinced out troop to go to LED lanterns from propane! make sure to push the grey release button removing and placing the lanterns in the main base. we now have two! Hatteras Kid",
+            "date": "2014-08-21",
+            "rate": 5
+            }
+        ],
+        "averageRate": 4.7
+        }
+        },
+        {
+        "id": 7890008,
+        "price": {
+            "value": 85.99,
+            "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 60.22,
+            "currency": "USD"
+        },
+        "name": "Sintechno Camping Portable Lantern",
+        "description": "Sintechno Inc This portable emergency / camp lantern uses 36 white SMD Super Bright LED's which can be recharged by both included solar panel and AC power adapter.",
+        "keywords": [],
+        "copy": "Sintechno 2-in-1 Solar Bright LED Emergency Camping Portable Lantern",
+        "image": {
+        "id": 8540008,
+        "url": "https://encrypted-tbn0.gstatic.com/shopping?q=tbn:ANd9GcREYcHVgrBWpAew2bVIrZB4mu7rvhKm-ijxtkSmBvizfVW2NGC--h6jlCX-Gbc7S9rwihlJ7C9D&usqp=CAY"
+        },
+        "company": {
+            "id": 4907996,
+            "name": "Overstock.com",
+            "address" : {
+                "country": "USA",
+                "state": "UTAH",
+                "city": "Midvale",
+                "street_address": "799 Coliseum Way",
+                "zip": 84047
+            }
+        },
+        "category": "Lantern",
+        "review": {
+        "reviews": [],
+        "averageRate": 0.0
+        }
+        },
+        
+  {
+        "id": 7890009,
+        "price": {
+            "value": 89.79,
+            "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 82.88,
+            "currency": "USD"
+        },	
+        "name": "Coleman Lantern",
+        "description": "Light up your next outdoor gathering with a super-bright lantern! The versatile Premium Powerhouse runs on either Coleman Liquid fuel or unleaded gasoline and uses less fuel than lanterns powered by propane. Delivering an extra-bright 1107 lumens on high, the Coleman Premium Powerhouse Dual Fuel Lantern features an adjustable dimmer knob to allow the perfect amount of light for your campsite, barbecue and more!",
+        "keywords": [],
+        "copy": "Coleman Dual Fuel 2-Mantle Powerhouse Lantern 64566500",
+        "image": {
+        "id": 8540009,
+        "url": "https://encrypted-tbn2.gstatic.com/shopping?q=tbn:ANd9GcRrT8bmktPPrwX1z974P8DriLGtyegoXAX90JRrStaYCnIwC_g6Nng2gyucVrk8WNAN3TkkfBb2&usqp=CAY"
+        },
+        "company": {
+            "id": 4907995,
+            "name": "CampSaver.com",
+            "address" : {
+                "country": "USA",
+                "state": "UTAH",
+                "city": "Nibley",
+                "street_address": "2280 Heritage Dr",
+                "zip": 84321
+            }
+        },
+        "category": "Lantern",
+        "review": {
+            "reviews": [
+                {
+                "reviewer_name": "ebay.com",
+                "review": "There's a reason why Coleman has been making these 'boring' products for SIXTY YEARS. They are the MOST economical lanterns (and stoves), and the BRIGHTEST lanterns and HOTTEST stoves. When I want to light up a campsite with 6 tents full of YMCA adventure guides, I pump up this lantern, light it, and hoist it 8 feet in the air. Then I can put away my 12v 8xD 2-bulb flourescent lamp. A gallon of Coleman white-gas (naptha) fuel has lasted us for 3 years of camping (about 12 campouts or 24 days/nights total - cooking and using this lantern.) This lamp gives enough light to throw a football or frisbee a decent distance (30 ft) at night. Best of all : EVERYONE ELSE WILL BE JEALOUS !!!",
+                "date": "2016-04-23",
+                "rate": 5
+                },{
+                "reviewer_name": "walmart.com",
+                "review": "This lantern is almost twice as bright as any I have owned. And the fact that it can run on unleaded gas from the corner gas station, makes it an awesome lantern. The convenience of using gas is a great plus. It makes it quick and easy. The lantern is sturdy and well built. The Coleman design has not changed a lot over time but if it aint broke, don't fix it. It comes with a small filtered funnel to aid in filling as well as two mantles to get you started. I got this powerhouse on sale and is has been well worth it.",
+                "date": "2015-08-09",
+                "rate": 4.9
+                }
+            ],
+            "averageRate": 4.9
+        }      
+     },
+     {
+        "id": 7890010,
+        "price": {
+        "value": 49.00,
+        "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 43.88,
+            "currency": "USD"
+        },			
+        "name": "Swarovski Crystalline Ballpoint Pen",
+        "description": "Your sparkling sense of style shines through with this stunning Swarovski crystalline pen with replaceable ink cartridge. Use it to record your most luxurious secrets and most fabulous thoughts. Available in silver-tone, 18k gold-plated and 18k rose gold tone-plated metal.",
+        "keywords": ["Swarovski", "Ballpoint"],
+        "copy": "Swarovski Crystalline Ballpoint Pen - Rose Gold Tone - 5224390",
+        "image": {
+        "id": 8540010,
+        "url": "https://encrypted-tbn2.gstatic.com/shopping?q=tbn:ANd9GcSMqg3PdM2510rvpTuawRe4wk-yOSA8p73EhoiratHb8FYgk_vqw4pkbehC6i__jFibXwPHa1E3&usqp=CAY"
+        },
+        "company": {
+            "id": 4607991,
+            "name": "Macy's",
+            "address" : {
+                "country": "USA",
+                "state": "CA",
+                "city": "San Francisco",
+                "street_address": "170 O'Farrell Street",
+                "zip": 94102
+            }
+        },
+        "category": "Pen",
+        "review": {
+            "reviews": [],
+            "averageRate": 0.0
+        }
+    },
+    {
+        "id": 7890011,
+        "price": {
+	        "value": 68.59,
+	        "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 64.88,
+            "currency": "USD"
+        },
+        "name": "Coleman Sundome 2-Person Tent",
+        "description": "2 person 1 room domed tent. Great for small family solo travelers and first time campers. Easy two pole set up with shock corded 8.5 mm fiberglass poles that slip into continuous pole sleeves. Pin and ring design and instaclip attachments. Durable carry bag with separate storage bags for tents poles and stakes and sewn on instructions. Features: exclusive weatherTec system keeps you dry. Adjustable Variflo ventilation front zip door and vent window interior gear pocket and electrical access port and polyethylene. 1000 D- 140 g/sqm floor.",
+        "keywords": ["Tents", "Coleman", "Dome", "Camping", "2Person", "Four Season", "With Carry Bag"],
+        "copy": "Coleman Sundome 2-Person Tent, Green",
+        "image": {
+	        "id": 8540011,
+	        "url": "https://encrypted-tbn0.gstatic.com/shopping?q=tbn:ANd9GcTAB-NLTn_7HFbw2LhGAUNRosCjv5nvlyEWDjUyBuMlp9Zg5qEScR-EOUdKmh_ueKNA8JCDm2v0&usqp=CAY"
+        },
+        "company": {
+            "id": 4607992,
+            "name": "Macy's",
+            "address" : {
+                "country": "USA",
+                "state": "CA",
+                "city": "San Francisco",
+                "street_address": "170 O'Farrell Street",
+                "zip": 94102
+            }
+        },
+        "category": "Tent",
+        "review": {
+            "reviews": [],
+            "averageRate": 0.0
+        }
+    },
+    {
+        "id": 7890012,
+        "price": {
+	        "value": 204.74,
+	        "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 200.88,
+            "currency": "USD"
+        },
+        "name": "Floureon 42000mAh Portable Power Station Emergency External Battery Pack Generator Backup",
+        "description": "AC output is customized according to different countries, areas. a)Please keep the device away from coin, jewelry, keys or other metal object or there will be short circuit hazard. b)Please don't heat this device. Throw the device in the fire, water and other liquid container is not allowed. Please keep the device away from the sun directly. c)Please keep the device away from high humidity and dusty environment d)Please don't crash the device. Open the device privately is not allowed e)Please don't fall down and hard shock on this device. This is normal.",
+        "keywords": ["Charger", "Powerbank", "Battery"],
+        "copy": "Floureon 42000mAh Portable Power Station Emergency External Battery Pack Generator Backup, 200W(Max) 120V 2 AC Outlets/4 USB Ports/Solar Input, Power",
+        "image": {
+	        "id": 8540012,
+	        "url": "https://encrypted-tbn2.gstatic.com/shopping?q=tbn:ANd9GcTwAq4Kn9qdOEMn0aeZkxL5NXEIkp_BPIJ79a6K62Xlz-y0ZRimB5Km18b7rODNyOAF1fmKBBk&usqp=CAE"
+        },
+        "company": {
+            "id": 4607992,
+            "name": "Macy's",
+            "address" : {
+                "country": "USA",
+                "state": "CA",
+                "city": "San Francisco",
+                "street_address": "170 O'Farrell Street",
+                "zip": 94102
+            }
+        },
+        "category": "Battery",
+        "review": {
+            "reviews": [],
+            "averageRate": 0.0
+        }
+	},
+  {
+        "id": 7890013,
+        "price": {
+            "value": 6.99,
+            "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 4.88,
+            "currency": "USD"
+        },
+        "name": "Mattel UNO Card Game",
+        "description": "Easy to pick up...impossible to put down. Play by matching color or number, or play an action card against your opponent. When you're down to one card, don't forget to yell \"UNO!\" Contains 108 cards and instructions. For 2 to 10 players. Ages 7 and older.",
+        "keywords": ["cards", "cardgames", "games"],
+        "copy": "Mattel UNO Card Game",
+        "image": {
+            "id": 8540013,
+            "url": "https://encrypted-tbn3.gstatic.com/shopping?q=tbn:ANd9GcRAGd8aVBgzIinWYF-YCl1TCwi1agSVjqIWmA3RSZenW8KOeYQC&usqp=CAY"
+        },
+        "company": {
+            "id": 4607992,
+            "name": "Macy's",
+            "address" : {
+                "country": "USA",
+                "state": "CA",
+                "city": "San Francisco",
+                "street_address": "170 O'Farrell Street",
+                "zip": 94102
+            }
+        },
+        "category": "Games",
+        "review": {
+            "reviews": [],
+            "averageRate": 0.0
+        }
+	},
+  {
+        "id": 7890014,
+        "price": {
+            "value": 6.44,
+            "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 4.88,
+            "currency": "USD"
+        },
+        "name": "Water Bottle",
+        "description": "This 3 gallon stackable water bottle is perfect for storing liquid and serving to a large amount of people. Proudly made, it is guaranteed to last a lifetime with its BPA free material and easy-to-grip handle. You'll never have to worry",
+        "keywords": ["water", "botle"],
+        "copy": "Water Bottle",
+        "image": {
+            "value": 6.44,
+            "currency": "USD"
+        },
+        "company": {
+            "id": 4607992,
+            "name": "Macy's",
+            "address" : {
+                "country": "USA",
+                "state": "CA",
+                "city": "San Francisco",
+                "street_address": "170 O'Farrell Street",
+                "zip": 94102
+            }
+        },
+        "category": "water",
+        "review": {
+            "reviews": [],
+            "averageRate": 0.0
+        }
+	},
+  {
+        "id": 7890015,
+        "price": {
+            "value": 9.00,
+            "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 7.22,
+            "currency": "USD"
+        },
+        "name": "Campfire Mini Marshmallows Packs - White 12-Piece Box",
+        "description": "Ancient Egyptians were probably the first people to enjoy the treats we know today as marshmallows. As early as 2000 BCE, Egyptians were squeezing sap from the mallow plant and mixing it with nuts and honey to create a dessert so rare and delicious, it was reserved for royalty. We have no way of knowing what these early marshmallows looked like -- the pillowy shapes with which we are familiar today didn’t originate until the 19th century, when confectioners in France learned how to create a more stable version involving gelatin. Not all marshmallows are created equal. Take these minis, for example -- unlike their bigger brothers, these tiny treats don’t fare well in a campfire. But they still pack a ton of marshmallowy goodness in itty bitty bite-size form! These sweet little things are perfect in hot cocoa, or they make great solo snacks when you’re crave a little surge of yum. And with 90 calories and no fat per pack, they're ideal for a guilt-free nibble!",
+        "keywords": ["candies", "campfire"],
+        "copy": "Campfire Mini Marshmallows Packs - White 12-Piece Box",
+        "image": {
+            "id": 8540015,
+            "url": "https://encrypted-tbn2.gstatic.com/shopping?q=tbn:ANd9GcQCHUAWnjyenL7VNfKyjXqyyuSvCdcelRSkhwwQnoVTgXBIhxvWnhU7aH8DSdz4hKz9BZkWQSdT&usqp=CAE"
+        },
+        "company": {
+            "id": 4607992,
+            "name": "Macy's",
+            "address" : {
+                "country": "USA",
+                "state": "CA",
+                "city": "San Francisco",
+                "street_address": "170 O'Farrell Street",
+                "zip": 94102
+            }
+        },
+        "category": "Candies",
+        "review": {
+            "reviews": [],
+            "averageRate": 0.0
+        }
+	},
+  {
+        "id": 7890016,
+        "price": {
+            "value": 49.95,
+            "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 44.44,
+            "currency": "USD"
+        },
+        "name": "Waterproof Outdoor Blanket Green | L.L.Bean",
+        "description": "Don't let a little wet grass ruin your picnic or breakfast at the campsite. This versatile waterproof blanket has a rugged polyurethane-coated nylon backing that keeps moisture from seeping through to the supersoft fleece surface. Top- 100% polyester fleece. Bottom- 100% nylon. Machine wash and dry. Super-soft polyester-fleece surface. Rugged polyurethane-coated nylon backing keeps moisture from seeping through. Great choice for sporting events, the beach on a boat or in your car's safety kit. Stuff sack included.",
+        "keywords": ["blanket", "water", "proof"],
+        "copy": "Waterproof Outdoor Blanket Green | L.L.Bean",
+        "image": {
+            "id": 8540016,
+            "url": "https://encrypted-tbn2.gstatic.com/shopping?q=tbn:ANd9GcQCHUAWnjyenL7VNfKyjXqyyuSvCdcelRSkhwwQnoVTgXBIhxvWnhU7aH8DSdz4hKz9BZkWQSdT&usqp=CAE"
+        },
+        "company": {
+            "id": 4607992,
+            "name": "Macy's",
+            "address" : {
+                "country": "USA",
+                "state": "CA",
+                "city": "San Francisco",
+                "street_address": "170 O'Farrell Street",
+                "zip": 94102
+            }
+        },
+        "category": "Blanket",
+        "review": {
+            "reviews": [],
+            "averageRate": 0.0
+        }
+	},
+  {
+        "id": 7890017,
+        "price": {
+            "value": 8.99,
+            "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 6.88,
+            "currency": "USD"
+        },
+        "name": "Wilson Sporting Goods Traditional Soccer Ball Size 4 Synthetic Leather",
+        "description": "Synthetic leather cover with shiny finish in a traditional black and white pattern. Superior playability. Butyl bladder for excellent air retention, shape & feel. Official size & weight.",
+        "keywords": ["ball", "soccer"],
+        "copy": "Wilson Sporting Goods Traditional Soccer Ball Size 4 Synthetic Leather",
+        "image": {
+            "id": 8540017,
+            "url": "https://encrypted-tbn2.gstatic.com/shopping?q=tbn:ANd9GcTr-XPLd0DzVWhmg8THgYqfMjHOdFBeqUdkeZ8VCyLB7d4q41_Y9TD6WTr1Ab_0nYR4Wvf1JhwX&usqp=CAY"
+        },
+        "company": {
+            "id": 4607992,
+            "name": "Macy's",
+            "address" : {
+                "country": "USA",
+                "state": "CA",
+                "city": "San Francisco",
+                "street_address": "170 O'Farrell Street",
+                "zip": 94102
+            }
+        },
+        "category": "Ball",
+        "review": {
+            "reviews": [],
+            "averageRate": 0.0
+        }
+	},
+  {
+        "id": 7890018,
+        "price": {
+            "value": 4.99,
+            "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 3.77,
+            "currency": "USD"
+        },
+        "name": "Repel Family Dry Aerosol Insect Repellent, 10% Deet - 4 fl oz spray",
+        "description": "Repel Family Dry Aerosol provides hour of protection from mosquitoes and biting flies. Also repel ticks, chiggers, no-see-ums, gnats and fleas. Repel Family Dry Aerosol offers long-lasting protection-- it s not greasy and has no unpleasant odor.",
+        "keywords": ["insect", "repellent"],
+        "copy": "Repel Family Dry Aerosol Insect Repellent, 10% Deet - 4 fl oz spray",
+        "image": {
+            "id": 8540018,
+            "url": "https://encrypted-tbn3.gstatic.com/shopping?q=tbn:ANd9GcRqw24-M_195-JQoMOSSVlWEWjlM5UcJI-DqK2zYWVZHsbTNBdneFQKa_WnjjT2nFmn39X920Mc&usqp=CAY"
+        },
+        "company": {
+            "id": 4607992,
+            "name": "Macy's",
+            "address" : {
+                "country": "USA",
+                "state": "CA",
+                "city": "San Francisco",
+                "street_address": "170 O'Farrell Street",
+                "zip": 94102
+            }
+        },
+        "category": "Repellent",
+        "review": {
+            "reviews": [],
+            "averageRate": 0.0
+        }
+	},
+    {
+        "id": 7890019,
+        "price": {
+            "value": 6.99,
+            "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 5.55,
+            "currency": "USD"
+        },
+        "name": "Ignite-O FS855-24 Fire Starter Packets",
+        "description": "The Quick, Clean & Easy Way to Start Your Fire! Big flame Burns up to 15 minutes No Fumes; No Residue Just light the packet! The cleaner way to light your fire for fireplaces, wood stoves, charcoal grills and campfires. Contains 20 packets.",
+        "keywords": ["fire", "starter"],
+        "copy": "Ignite-O FS855-24 Fire Starter Packets",
+        "image": {
+            "id": 8540019,
+            "url": "https://encrypted-tbn0.gstatic.com/shopping?q=tbn:ANd9GcQuq5gS5UD67LAemZvDEhaE332K8Z3sjlYxr75shbA0Ezl_As8&usqp=CAY"
+        },
+        "company": {
+            "id": 4607992,
+            "name": "Macy's",
+            "address" : {
+                "country": "USA",
+                "state": "CA",
+                "city": "San Francisco",
+                "street_address": "170 O'Farrell Street",
+                "zip": 94102
+            }
+        },
+        "category": "Utilities",
+        "review": {
+            "reviews": [],
+            "averageRate": 0.0
+        }
+    },
+    {
+        "id": 7890020,
+        "price": {
+            "value": 130.89,
+            "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 125.11,
+            "currency": "USD"
+        },
+        "name": "Clay Alder Home Owsley Futon Mattress",
+        "description": "Clay Alder Home Owsley Full-size 8-inch Futon Mattress Give house guests a comfortable place to rest with this 8-inch futon mattress.",
+        "keywords": ["Futon", "Mattress"],
+        "copy": "Clay Alder Home Owsley Full-Size 8-Inch Futon Mattress (Khaki (Green))",
+        "image": {
+            "id": 8540020,
+            "url": "https://encrypted-tbn3.gstatic.com/shopping?q=tbn:ANd9GcTHWjrNzzzE1tLM0dYQCIRjwY1-Et00jLPuaD6VjzH1HKiVeH9BGHH60USGE-I&usqp=CAE"
+        },
+        "company": {
+            "id": 4607992,
+            "name": "Macy's",
+            "address" : {
+                "country": "USA",
+                "state": "CA",
+                "city": "San Francisco",
+                "street_address": "170 O'Farrell Street",
+                "zip": 94102
+            }
+        },
+        "category": "mattress",
+        "review": {
+            "reviews": [],
+            "averageRate": 0.0
+        }
+	},
+    {
+        "id": 7890021,
+        "price": {
+            "value": 700,
+            "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 791.33,
+            "currency": "USD"
+        },
+        "name": "Bed With Built-in Workstation",
+        "description": "Make the most of your children's bedroom floor space with this all-inclusive bedroom set! This loft bed features a stable and sturdy upper twin bunk, a separate lower bed on movable casters, and a built-in workstation to double as a handy computer desk. Mattress, box springs and bedding (comforters, sheets, pillows, etc.) are NOT included.",
+        "keywords": ["bed", "twin", "workstation"],
+        "copy": "Furniture of America Carmenie Twin Over Twin Loft Bed With Built-in Workstation (Oak (Brown))",
+        "image": {
+            "id": 8540021,
+            "url": "https://encrypted-tbn2.gstatic.com/shopping?q=tbn:ANd9GcTT4RUgHVYhGF5gCj-8KzLh96rXB-k2I_YkEuUib09lOjQazrDnImqONtmBqSwhwVUOpTJkXsVB&usqp=CAY"
+        },
+        "company": {
+            "id": 4607992,
+            "name": "Macy's",
+            "address" : {
+                "country": "USA",
+                "state": "CA",
+                "city": "San Francisco",
+                "street_address": "170 O'Farrell Street",
+                "zip": 94102
+            }
+        },
+        "category": "Bed",
+        "review": {
+            "reviews": [],
+            "averageRate": 0.0
+        }
+	},
+    {
+        "id": 7890022,
+        "price": {
+            "value": 25.00,
+            "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 20.00,
+            "currency": "USD"
+        },
+        "name": "Book Rack Storage Bookshelf",
+        "description": "Espresso Kids Book Rack Storage Bookshelf The space-saving Tot Tutors Kids Book Rack Storage Bookshelf with book-storage sling pockets displays book covers forward for easy recognition by young children. The 4 colorful, deep, sleeves hold books of almost any size for easy book viewing.",
+        "keywords": ["Bookshelf", "Rack"],
+        "copy": "Tot Tutors WO595 Espresso Kids Book Rack Storage Bookshelf",
+        "image": {
+            "id": 8540022,
+            "url": "https://encrypted-tbn3.gstatic.com/shopping?q=tbn:ANd9GcTfOcaGAdB3cgqc7gp4xQxX8q6tSPgb6jFt0IXpaKNRIkf4yq8Od4xVFhRxaijAJCpNclrycC5c&usqp=CAY"
+        },
+        "company": {
+            "id": 4607992,
+            "name": "Macy's",
+            "address" : {
+                "country": "USA",
+                "state": "CA",
+                "city": "San Francisco",
+                "street_address": "170 O'Farrell Street",
+                "zip": 94102
+            }
+        },
+        "category": "Bookshelf",
+        "review": {
+            "reviews": [],
+            "averageRate": 0.0
+        }
+	},
+    {
+        "id": 7890023,
+        "price": {
+            "value": 144.88,
+            "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 139.88,
+            "currency": "USD"
+        },
+        "name": "Chair Cubes",
+        "description": "Office Furniture > Chairs & Sofas Childrens Factory 910007 Chair Cube Set, Assorted - Polyethylene - 15\" Length x 15\" Width x 15\" Height Lightweight chairs conveniently provide multiple uses and can be used both indoors and outdoors. Use them as chairs with either a 6\" high seat or 9\" high seat. Or, flip them over to use them as a table or a seat for adults. Chairs are made from nontoxic, recyclable polyethylene for safe use by everyone.",
+        "keywords": [""],
+        "copy": "Chair Cubes - Set of Four",
+        "image": {
+            "id": 8540023,
+            "url": "https://encrypted-tbn2.gstatic.com/shopping?q=tbn:ANd9GcSWNJfDDiZAR56GlwbrlWIEy6Ug20ThENLB9YfAmhrHgnKcwA6M4Tgpqp4M3Wgvz9pQlluSTWib&usqp=CAE"
+        },
+        "company": {
+            "id": 4607992,
+            "name": "Macy's",
+            "address" : {
+                "country": "USA",
+                "state": "CA",
+                "city": "San Francisco",
+                "street_address": "170 O'Farrell Street",
+                "zip": 94102
+            }
+        },
+        "category": "Chair",
+        "review": {
+            "reviews": [],
+            "averageRate": 0.0
+        }
+	},
+    {
+        "id": 7890024,
+        "price": {
+            "value": 85.98,
+            "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 80.98,
+            "currency": "USD"
+        },
+        "name": "Safavieh Kids Transitional Geometric",
+        "description": "Save Money. These hand-tufted 100 percent pure wool rugs are designed in stimulating colors and patterns that will brighten and energize the entire character of your child’s bedroom, playroom or nursery. Available in a wide selection of styles, colors and sizes. Color: Blue. Age Group: Infant.",
+        "keywords": ["Safavieh", "carpet"],
+        "copy": "Safavieh Kids Transitional Geometric Hand-Tufted Wool Navy (Blue)/ Ivory Area Rug (4' X 6') (SFK907N-4), Size 4' X 6'",
+        "image": {
+            "id": 8540024,
+            "url": "https://www.google.com/aclk?sa=l&ai=DChcSEwj4-cSE2eTaAhWEoOwKHYsYCs8YABAdGgJwag&sig=AOD64_3YIKKcSjbgU3o4JJ4G2cBh_Nk3Eg&ctype=5&q=&ved=0ahUKEwiez8GE2eTaAhXjy1QKHQueABYQwjwIlwE&adurl="
+        },
+        "company": {
+            "id": 4607992,
+            "name": "Macy's",
+            "address" : {
+                "country": "USA",
+                "state": "CA",
+                "city": "San Francisco",
+                "street_address": "170 O'Farrell Street",
+                "zip": 94102
+            }
+        },
+        "category": "Carpet",
+        "review": {
+            "reviews": [],
+            "averageRate": 0.0
+        }
+	},
+    {
+        "id": 76241,
+        "price": {
+            "value": 135.99,
+            "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 99.98,
+            "currency": "USD"
+        },
+        "name": "Base Camp Tent",
+        "description": "* Great beginner tent\n* Strong and durable\n* Great for families",
+        "keywords": ["camp", "tent"],
+        "copy": "Base Camp Tent",
+        "image": {
+            "id": 8540025,
+            "url": "https://github.com/connect2018/product-images/blob/master/tent_brown.png?raw=true"
+        },
+        "company": {
+            "id": 4607992,
+            "name": "Macy's",
+            "address" : {
+                "country": "USA",
+                "state": "CA",
+                "city": "San Francisco",
+                "street_address": "170 O'Farrell Street",
+                "zip": 94102
+            }
+        },
+        "category": "Camping",
+        "review": {
+            "reviews": [],
+            "averageRate": 0.0
+        }
+	},
+    {
+        "id": 89031,
+        "price": {
+            "value": 273.95,
+            "currency": "USD"
+        },
+        "name": "Camo Trek Tent",
+        "description": "* Army styling\n* Weather proof\n* Automatic setup",
+        "keywords": ["camp", "tent"],
+        "copy": "Camo Trek Tent",
+        "image": {
+            "id": 8540026,
+            "url": "https://github.com/connect2018/product-images/blob/master/tent_brown.png?raw=true"
+        },
+        "company": {
+            "id": 4607992,
+            "name": "Macy's",
+            "address" : {
+                "country": "USA",
+                "state": "CA",
+                "city": "San Francisco",
+                "street_address": "170 O'Farrell Street",
+                "zip": 94102
+            }
+        },
+        "category": "Camping",
+        "review": {
+            "reviews": [],
+            "averageRate": 0.0
+        }
+	},
+    {
+        "id": 87623,
+        "price": {
+            "value": 329.99,
+            "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 279.99,
+            "currency": "USD"
+        },
+        "name": "Outlands Explorer Tent",
+        "description": "* Strong and lightweight\n* All weather\n* Self-erecting",
+        "keywords": ["camp", "tent"],
+        "copy": "Outlands Explorer Tent",
+        "image": {
+            "id": 8540027,
+            "url": "https://github.com/connect2018/product-images/blob/master/tent_colorful.png?raw=true"
+        },
+        "company": {
+            "id": 4607992,
+            "name": "Macy's",
+            "address" : {
+                "country": "USA",
+                "state": "CA",
+                "city": "San Francisco",
+                "street_address": "170 O'Farrell Street",
+                "zip": 94102
+            }
+        },
+        "category": "Camping",
+        "review": {
+            "reviews": [],
+            "averageRate": 0.0
+        }
+	},
+    {
+        "id": 25458,
+        "price": {
+            "value": 299.95,
+            "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 265.00,
+            "currency": "USD"
+        },
+        "name": "Eureka Mountain Tent",
+        "description": "* Weather any storm\n* Latest fabrics\n* Auto setup and takedown",
+        "keywords": ["camp", "tent"],
+        "copy": "Eureka Mountain Tent",
+        "image": {
+            "id": 8550027,
+            "url": "https://github.com/connect2018/product-images/blob/master/tent_orange.png?raw=true"
+        },
+        "company": {
+            "id": 4607992,
+            "name": "Macy's",
+            "address" : {
+                "country": "USA",
+                "state": "CA",
+                "city": "San Francisco",
+                "street_address": "170 O'Farrell Street",
+                "zip": 94102
+            }
+        },
+        "category": "Camping",
+        "review": {
+            "reviews": [],
+            "averageRate": 0.0
+        }
+	},
+    {
+        "id": 19632,
+        "price": {
+            "value": 32.99,
+            "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 27.86,
+            "currency": "USD"
+        },
+        "name": "Monster Lantern + Power",
+        "description": "* 20 - 640 Lumen\n* Built-in power bank\n* Adjustable output",
+        "keywords": ["lantern"],
+        "copy": "Monster Lantern + Power",
+        "image": {
+            "id": 8540029,
+            "url": "https://github.com/connect2018/product-images/blob/master/lantern_orange.png?raw=true"
+        },
+        "company": {
+            "id": 4607992,
+            "name": "Macy's",
+            "address" : {
+                "country": "USA",
+                "state": "CA",
+                "city": "San Francisco",
+                "street_address": "170 O'Farrell Street",
+                "zip": 94102
+            }
+        },
+        "category": "Lantern",
+        "review": {
+            "reviews": [],
+            "averageRate": 0.0
+        }
+	},
+	{
+    "id": 56271,
+    "price": {
+      "value": 12.99,
+      "currency": "USD"
+    },
+    "discountedPrice": {
+      "value": 9.99,
+      "currency": "USD"
+    },
+    "name": "Industrial Flashlight Lantern",
+    "description": "* Rugged and water-resistant\n* Up to 110 Lumen\n* Lasts up to 4 hours",
+    "keywords": [
+      "lantern"
+    ],
+    "copy": "Industrial Flashlight Lantern",
+    "image": {
+      "id": 8640029,
+      "url": "https://github.com/connect2018/product-images/blob/master/lantern_yellow.png?raw=true"
+    },
+    "company": {
+      "id": 4607992,
+      "name": "Macy's",
+      "address": {
+        "country": "USA",
+        "state": "CA",
+        "city": "San Francisco",
+        "street_address": "170 O'Farrell Street",
+        "zip": 94102
+      }
+    },
+    "category": "Lantern",
+    "review": {
+      "reviews": [
+        
+      ],
+      "averageRate": 0.0
+    }
+  },
+    {
+        "id": "09826",
+        "price": {
+            "value": 28.95,
+            "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 24.37,
+            "currency": "USD"
+        },
+        "name": "Workhorse Camp Lantern",
+        "description": "* 650 Lumen LED\n* Collapsible\n* Classic look",
+        "keywords": ["lantern"],
+        "copy": "Workhorse Camp Lantern",
+        "image": {
+            "id": 8540030,
+            "url": "https://github.com/connect2018/product-images/blob/master/lantern_red.png?raw=true"
+        },
+        "company": {
+            "id": 4607992,
+            "name": "Macy's",
+            "address" : {
+                "country": "USA",
+                "state": "CA",
+                "city": "San Francisco",
+                "street_address": "170 O'Farrell Street",
+                "zip": 94102
+            }
+        },
+        "category": "Lantern",
+        "review": {
+            "reviews": [],
+            "averageRate": 0.0
+        }
+	},
+    {
+    "id": 87265,
+    "price": {
+      "value": 44.25,
+      "currency": "USD"
+    },
+    "name": "All Purpose Water Shoes",
+    "description": "* Water-ready webbing\n* Ultra light\n* Shock-absorbing heel",
+    "keywords": [
+      "shoes"
+    ],
+    "copy": "All Purpose Water Shoes",
+    "image": {
+      "id": 8540031,
+      "url": "https://github.com/connect2018/product-images/blob/master/shoes_blue.png?raw=true"
+    },
+    "company": {
+      "id": 4607992,
+      "name": "Macy's",
+      "address": {
+        "country": "USA",
+        "state": "CA",
+        "city": "San Francisco",
+        "street_address": "170 O'Farrell Street",
+        "zip": 94102
+      }
+    },
+    "category": "Shoes",
+    "review": {
+      "reviews": [
+        
+      ],
+      "averageRate": 0.0
+    }
+  },
+    {
+        "id": 86623,
+        "price": {
+            "value": 49.95,
+            "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 39.96,
+            "currency": "USD"
+        },
+        "name": "Outdoor Tech Powerbank",
+        "description": "* 6000 mAh lithium polymer\n* Portable and lightweight\n* Dual USB",
+        "keywords": ["charging", "charger", "Charging packs", "battery"],
+        "copy": "Outdoor Tech Powerbank",
+        "image": {
+            "id": 8540032,
+            "url": "https://github.com/connect2018/product-images/blob/master/powerbank_black.png?raw=true"
+        },
+        "company": {
+            "id": 4607992,
+            "name": "Macy's",
+            "address" : {
+                "country": "USA",
+                "state": "CA",
+                "city": "San Francisco",
+                "street_address": "170 O'Farrell Street",
+                "zip": 94102
+            }
+        },
+        "category": "Battery",
+        "review": {
+            "reviews": [],
+            "averageRate": 0.0
+        }
+	},
+    {
+        "id": 10028,
+        "price": {
+            "value": 39.98,
+            "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 31.98,
+            "currency": "USD"
+        },
+        "name": "Green Life Solar Charger",
+        "description": "* 24000 mAh lithium polymer\n* High-output solar panels\n* 3 USB outputs",
+        "keywords": ["charging", "charger", "Charging packs", "battery"],
+        "copy": "Green Life Solar Charger",
+        "image": {
+            "id": 8540033,
+            "url": "https://github.com/connect2018/product-images/blob/master/powerbank_green.png?raw=true"
+        },
+        "company": {
+            "id": 4607992,
+            "name": "Macy's",
+            "address" : {
+                "country": "USA",
+                "state": "CA",
+                "city": "San Francisco",
+                "street_address": "170 O'Farrell Street",
+                "zip": 94102
+            }
+        },
+        "category": "Battery",
+        "review": {
+            "reviews": [],
+            "averageRate": 0.0
+        }
+	},
+    {
+        "id": 71201,
+        "price": {
+            "value": 47.95,
+            "currency": "USD"
+        },
+        "name": "Eureka Cypress Sleeping Bag",
+        "description": "* Mummy style bag\n* For moderate climate\n* Polyfill (not down)",
+        "keywords": [
+        "Eureka!", 
+        "Children's", 
+        "Mummy", 
+        "15° F", 
+        "With Pocket", 
+        "With Stuff Sack"
+        ],
+        "copy": "Eureka Cypress Sleeping Bag",
+        "image": {
+            "id": 8540034,
+            "url": "https://github.com/connect2018/product-images/blob/master/sleepingbag_green.png?raw=true"
+        },
+    company: {
+      id: 4907999,
+      name: "The-House.com",
+      address: {
+        country: "USA",
+        state: "MINNESOTA",
+        city: "Minneapolis",
+        street_address: "200 S Owasso Blvd E St Paul",
+        zip: 55117
+      }
+    },
+    category: "Sleeping Bags",
+    review: {
+      reviews: [
+        {
+          reviewer_name: "Backcountry.com",
+          review: "Just got this in yesterday for our little guy, but he won't get a chance to try it. It's just not packable. Compressed it measures 1'' in diameter and 13'' long. It won't fit in our packs so it's going back. Bummer because the price is really great. I'm sure it would work great for car camping or slumber parties, but if you need to pack look elsewhere.",
+          date: "2015-06-10",
+          rate: 2
+        }, 
+        {
+          reviewer_name: "sunnysports.com",
+          review: "I am 5'2'' and about 100 lbs so I ordered the children's bag. There's still room to grow!! I haven't tested it out yet but I can't wait to try it in my hammock on Mt. Washington!",
+          date: "2015-06-10",
+          rate: 4
+        }
+      ],
+      averageRate: 3
+    }
+  }
+]]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+    <flow name="get:\catalog\products\(product_id):catalog-config">
+        <choice doc:name="Choice" doc:id="b42f2a6c-12af-4677-a3e9-eb5c42a43310">
+            <when expression="#[attributes.uriParams.product_id == '7890001']">
+                <ee:transform doc:name="Product 7890001" doc:id="ac26e6d3-4a3f-4451-94cb-02113fc4853d">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  id: 7890001,
+  price: {
+    value: 47.95,
+    currency: "USD"
+  },
+	"discountedPrice": {
+	    "value": 39.88,
+	    "currency": "USD"
+	},
+  name: "Eureka Cypress Sleeping Bag",
+  description: "Made from the same warm material as the adult size for backpacking and family camping, Eureka's Cyprus Junior is a three-season sleeping bag with toasty ThermaShield insulation that's temperature rated at 15°F. The boy-specific junior size and fit reduces unnecessary weight and bulk while on the trail.",
+  keywords: [
+    "Eureka!", 
+    "Children's", 
+    "Mummy", 
+    "15° F", 
+    "With Pocket", 
+    "With Stuff Sack"
+  ],
+  copy: "Eureka 15°F Cypress Junior Sleeping Bag - Mummy (for Boys) - Grey/Green ( )",
+  image: {
+    id: 8540001,
+    url: "https://github.com/connect2018/product-images/blob/master/sleepingbag_green.png?raw=true&usqp=CAY"
+  },
+  company: {
+    id: 4907999,
+    name: "The-House.com",
+    address: {
+      country: "USA",
+      state: "MINNESOTA",
+      city: "Minneapolis",
+      street_address: "200 S Owasso Blvd E St Paul",
+      zip: 55117
+    }
+  },
+  category: "Sleeping Bags",
+  review: {
+    reviews: [
+      {
+        reviewer_name: "Backcountry.com",
+        review: "Just got this in yesterday for our little guy, but he won't get a chance to try it. It's just not packable. Compressed it measures 1'' in diameter and 13'' long. It won't fit in our packs so it's going back. Bummer because the price is really great. I'm sure it would work great for car camping or slumber parties, but if you need to pack look elsewhere.",
+        date: "2015-06-10",
+        rate: 2
+      }, 
+      {
+        reviewer_name: "sunnysports.com",
+        review: "I am 5'2'' and about 100 lbs so I ordered the children's bag. There's still room to grow!! I haven't tested it out yet but I can't wait to try it in my hammock on Mt. Washington!",
+        date: "2015-06-10",
+        rate: 4
+      }
+    ],
+    averageRate: 3
+  }
+}]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </when>
+            <when expression="#[attributes.uriParams.product_id == '7890002']">
+                <ee:transform doc:name="Product 7890002" doc:id="a82b6f23-308e-4241-b810-90517a459b41">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+      "id": 7890002,
+      "price": {
+        "value": 40.90,
+        "currency": "USD"
+      },
+	    "discountedPrice": {
+	        "value": 29.88,
+	        "currency": "USD"
+	    },
+      "name": "Goal Zero Lighthouse 400",
+      "description": "This 400-lumen (max. setting) lantern can be charged three ways: from the sun using Goal Zero solar panels (not included), from USB or manually with the hand crank built into the top. Full charge lasts up to 48 hours on the Li-NMC battery.",
+      "keywords": ["Goal Zero","Lighthouse", "Camping light", "lantern"],
+      "copy": "Goal Zero Lighthouse 400 - Camping light - LED - 3 W - warm white light - 3500 K - lantern",
+      "image": {
+        "id": 8540002,
+        "url": "https://encrypted-tbn2.gstatic.com/shopping?q=tbn:ANd9GcTcg1_pBwGoE4XItBXqfhkq8sqCkoBs6ZLKX1JQv9gOxl3M-2vlHF-VX6j-SEMWnOPTuzLQ0VPV&usqp=CAY"
+      },
+      "company": {
+        "id": 4907998,
+        "name": "REI",
+        "address" : {
+          "country": "USA",
+          "state": "CALIFORNIA",
+          "city": "San Francisco",
+          "street_address": "840 Brannan St",
+          "zip": 94103
+        }
+      },
+      "category": "Lantern",
+      "review": {
+        "reviews": [
+          {
+            "reviewer_name": "goalzero.com",
+            "review": "These lanterns are choked full of features. I would recommend these. The lantern features themselves are excellent then add on the USB hub and charging by sun, USB and a hand crank you have a lantern that is second to none. Cons: it seems the internal bettieries are not user replaceable or at least it is not document as user replaceable. The on board hanging hook/handle has slid out on me seems like there should be more tension to keep it in place. None of these Cons are crictal to me so I would buy this lantern again.",
+            "date": "2016-10-02",
+            "rate": 4
+          },{
+            "reviewer_name": "mec.ca",
+            "review": "I bought this lantern about 2 yeara ago and have not regretted it. The battery has plenty power, it will easily last 2-3 nights without recharging. The light Britney's is exceptional. On the camp table it will easily give nice light to the campsite. The light source is adjustable from 180 to 360 degrees. I have not used the USB port but just having it is a comfort, knowing I can charge my phone etc. The lantern is of really high quality. There other features I didn't not comment on, all are good. I would recommend this lantern",
+            "date": "2017-05-15",
+            "rate": 5
+          }
+        ],
+        "averageRate": 4.6
+      }
+    }]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </when>
+            <when expression="#[attributes.uriParams.product_id == '7890003']">
+                <ee:transform doc:name="Product 7890003" doc:id="eceff330-f14c-4f8f-80c6-8d4c1462e4a6">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+      "id": 7890003,
+      "price": {
+        "value": 199.95,
+        "currency": "USD"
+      },
+    "discountedPrice": {
+        "value": 179.88,
+        "currency": "USD"
+    },
+      "name": "Goal Zero Yeti 150 Solar Generator External Battery Pack/Power Inverter",
+      "description": "Goal Zero Yeti 150 Solar Generator, 22004 A plug-and-play, silent, fume-free generator for emergencies, camping, or wherever you need power. The Goal Zero Yeti 150 Solar Generator is a gas-free source of portable power to keep lights, phones and laptops powered on through any situation.",
+      "keywords": ["GOAL ZERO", "Solar", "160 watt", "With Inverter", "Portable"],
+      "copy": "Goal Zero Yeti 150 Solar Generator External Battery Pack/Power Inverter - 14 Ah - 14-29V",
+      "image": {
+        "id": 8540003,
+        "url": "https://encrypted-tbn3.gstatic.com/shopping?q=tbn:ANd9GcTqPH1wK0UGXcI55H1rSwKukYH4_AfAU40OH_noVqt4M_E95UTOyZvkdAvMYE_tNfeV-c3Cao8&usqp=CAE"
+      },
+      "company": {
+        "id": 4907998,
+        "name": "REI",
+        "address" : {
+          "country": "USA",
+          "state": "CALIFORNIA",
+          "city": "San Francisco",
+          "street_address": "840 Brannan St",
+          "zip": 94103
+        }
+      },
+      "category": "Battery",
+      "review": {
+        "reviews": [
+          {
+            "reviewer_name": "goalzero.com",
+            "review": "I bought this on sale for the camping event around I think Memorial day. I have used it 3 different times now camping out on the island in Casco Bay in Maine. I was worried about it after the 2nd day because it did not seem to charge the same as it did the 1st. We did use it heavier on this last 4 day event, Charging 2 smart phones, 1 iPad2, 1 lighthouse 250, and we ran 3 of the new Light-a-Life 350's on it for probably 1 hour making and eating dinner each night. It recharged to full the 1st night with my Nomad 20 and Nomad 7 in tandem. The 2nd day it recharged to 100% again, the third day it was better than 80% and the last day I did not bother as we had to pack up. It never dropped below 60% until the last day and we used it to beat the band. Admittedly I do want to step up to the Yeti 400 for something with more power on hand. But that's cause I am too Boy scout I want to bring something out there for 4 days and be able to not have to worry about solar if the weather is not good for solar. But I can't complain this power pack delivered and held up great.",
+            "date": "2015-11-18",
+            "rate": 5
+          },{
+            "reviewer_name": "Home Depot",
+            "review": "I wanted this generator but was nervous about purchasing it. If it didn't work or something went wrong, how would I return it. Viewed this item on many other sites and decided to purchase with HD because I could easily return it if needed. I've had the generator for almost a month. This generator is SO QUIET! So far I charged a lamp, I Pad and phone. There is nothing to do, it comes right out of the box ready to go. You may need to charge a little but mine arrived charged. It's compact, easy to move around and has many ports. At this point I am considering upgrading to the larger one but wanted to test this out before investing more money. I gave it four stars only because I've had it such a short time and I'm still testing it, but so far so good. Hurricane Sandy was a wake up call us. Please take a moment to look around, we have hurricanes, earthquakes, power outages etc. The times are changing make sure your family is prepared, spiritually, mentally, physically. If the grid goes down it will be nice to have power and the ability to keep in touch with your family.",
+            "date": "2015-04-07",
+            "rate": 4
+          }
+        ],
+        "averageRate": 4.3
+      }
+    }]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </when>
+            <when expression="#[attributes.uriParams.product_id == '7890006']">
+                <ee:transform doc:name="Product 7890006" doc:id="90ef0b8f-11c4-4f13-bb92-157338b0c595">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+        "id": 7890006,
+        "price": {
+        "value": 74.99,
+        "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 70.88,
+            "currency": "USD"
+        },
+        "name": "Coleman Lantern",
+        "description": "Take the convenience of Three lights in one with you with the Coleman Trifecta LED Lantern. During an emergency, pop one of the three lights off the base for a personal flashlight. They recharge once theyre back on the base for hands-free light. The lantern runs cool so its always safe to touch, even when its been on for hours. Model # 2000013867 Features: Even distribution of light Choose your power, 4D batteries, or CPX 6 rechargeable Hi/Low for optimal light output 3 removable panels",
+        "keywords": [],
+        "copy": "Coleman CPX 6 Triago Lantern 61450663",
+        "image": {
+        "id": 8540006,
+        "url": "https://encrypted-tbn1.gstatic.com/shopping?q=tbn:ANd9GcQyMPBCmFkdvvSdN1AiCJCQ9-B7kIVriJd-Ich_bszorXEUUIaWtCN88Yb0kmLFCLw05gLylZ4&usqp=CAY"
+        },
+        "company": {
+        "id": 4907995,
+        "name": "CampSaver.com",
+        "address" : {
+            "country": "USA",
+            "state": "UTAH",
+            "city": "Nibley",
+            "street_address": "2280 Heritage Dr",
+            "zip": 84321
+            }
+        },
+        "category": "Lantern",
+        "review": {
+        "reviews": [
+            {
+            "reviewer_name": "cabelas.com",
+            "review": "I bought this lantern for camping, a fantastic idea that you can essentially break the lantern apart and everyone grab a piece. No more having the kids fight over the light. Long battery life, and I purchased the rechargeable battery pack as well. This is the second re-chargeable Coleman lantern I have purchased this year, and I have been VERY pleased with each purchase.",
+            "date": "2014-10-04",
+            "rate": 5
+            },{
+            "reviewer_name": "thesportsauthority.com",
+            "review": "Gave as gift. Recipient very pleased",
+            "date": "2016-02-05",
+            "rate": 4
+            }
+        ],
+        "averageRate": 4.2
+        }
+    }]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </when>
+            <when expression="#[attributes.uriParams.product_id == '7890007']">
+                <ee:transform doc:name="Product 7890007" doc:id="9c4cb769-6b1c-4ec8-a620-ca099f40cafc">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+        "id": 7890007,
+        "price": {
+        "value": 71.99,
+        "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 52.88,
+            "currency": "USD"
+        },
+        "name": "Coleman Lantern",
+        "description": "Uses 8 D batteries, not included. Imported.",
+        "keywords": [],
+        "copy": "Coleman Quad LED Lantern",
+        "image": {
+        "id": 8540007,
+        "url": "https://encrypted-tbn3.gstatic.com/shopping?q=tbn:ANd9GcRNTfRuy1Ds8s7yJD_8PLCB2gIbPHF9H-rTBka9-Dkd0_uTD-6ZguxiB2A39wnFOHLOLWzsu_U&usqp=CAY"
+        },
+        "company": {
+            "id": 4907995,
+            "name": "CampSaver.com",
+            "address" : {
+                "country": "USA",
+                "state": "UTAH",
+                "city": "Nibley",
+                "street_address": "2280 Heritage Dr",
+                "zip": 84321
+            }
+        },
+        "category": "Lantern",
+        "review": {
+        "reviews": [
+            {
+            "reviewer_name": "walmart.com",
+            "review": "This Lantern is very good at handling power outages and other low lighting issues. Since it has 4 separate removable light units that can be carried or placed in different locations as needed. When you put them back onto the base nit, the lights recharge so they are ready for the next time you need them. OR you can simply use the entire lantern as a single unit. Lightweight and easy to handle, it is a very good light.",
+            "date": "2016-04-02",
+            "rate": 4
+            },{
+            "reviewer_name": "MidwayUSA",
+            "review": "outstanding lantern, started using this lantern when my son was a cub scout! The first set of batteries lasted for a year, the 8 d batteries in the base charge the NICADS in the four removable lanterns. When they no longer hold a charge it is telling you it is time to change the main batteries, but the lantern will continue to work for days after this! We were able to send one lantern with the boys in each tent, and recharge them the next day because you know they left the light on all night! he is now a boy scout and the lantern convinced out troop to go to LED lanterns from propane! make sure to push the grey release button removing and placing the lanterns in the main base. we now have two! Hatteras Kid",
+            "date": "2014-08-21",
+            "rate": 5
+            }
+        ],
+        "averageRate": 4.7
+        }
+        }]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </when>
+            <when expression="#[attributes.uriParams.product_id == '7890008']">
+                <ee:transform doc:name="Product 7890008" doc:id="50e653de-d4ba-4ce4-9e0f-b268c712c17f">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+        "id": 7890008,
+        "price": {
+        "value": 85.99,
+        "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 60.22,
+            "currency": "USD"
+        },
+        "name": "Sintechno Camping Portable Lantern",
+        "description": "Sintechno Inc This portable emergency / camp lantern uses 36 white SMD Super Bright LED's which can be recharged by both included solar panel and AC power adapter.",
+        "keywords": [],
+        "copy": "Sintechno 2-in-1 Solar Bright LED Emergency Camping Portable Lantern",
+        "image": {
+        "id": 8540008,
+        "url": "https://encrypted-tbn0.gstatic.com/shopping?q=tbn:ANd9GcREYcHVgrBWpAew2bVIrZB4mu7rvhKm-ijxtkSmBvizfVW2NGC--h6jlCX-Gbc7S9rwihlJ7C9D&usqp=CAY"
+        },
+        "company": {
+            "id": 4907996,
+            "name": "Overstock.com",
+            "address" : {
+                "country": "USA",
+                "state": "UTAH",
+                "city": "Midvale",
+                "street_address": "799 Coliseum Way",
+                "zip": 84047
+            }
+        },
+        "category": "Lantern",
+        "review": {
+        "reviews": [],
+        "averageRate": 0.0
+        }
+        }]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </when>
+            <when expression="#[attributes.uriParams.product_id == '7890009']">
+                <ee:transform doc:name="Product 7890009" doc:id="b018f5f1-6972-42da-b706-5b17ebca921a">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+        "id": 7890009,
+        "price": {
+        "value": 89.79,
+        "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 82.88,
+            "currency": "USD"
+        },
+        "name": "Coleman Lantern",
+        "description": "Light up your next outdoor gathering with a super-bright lantern! The versatile Premium Powerhouse runs on either Coleman Liquid fuel or unleaded gasoline and uses less fuel than lanterns powered by propane. Delivering an extra-bright 1107 lumens on high, the Coleman Premium Powerhouse Dual Fuel Lantern features an adjustable dimmer knob to allow the perfect amount of light for your campsite, barbecue and more!",
+        "keywords": [],
+        "copy": "Coleman Dual Fuel 2-Mantle Powerhouse Lantern 64566500",
+        "image": {
+        "id": 8540009,
+        "url": "https://encrypted-tbn2.gstatic.com/shopping?q=tbn:ANd9GcRrT8bmktPPrwX1z974P8DriLGtyegoXAX90JRrStaYCnIwC_g6Nng2gyucVrk8WNAN3TkkfBb2&usqp=CAY"
+        },
+        "company": {
+            "id": 4907995,
+            "name": "CampSaver.com",
+            "address" : {
+                "country": "USA",
+                "state": "UTAH",
+                "city": "Nibley",
+                "street_address": "2280 Heritage Dr",
+                "zip": 84321
+            }
+        },
+        "category": "Lantern",
+        "review": {
+            "reviews": [
+                {
+                "reviewer_name": "ebay.com",
+                "review": "There's a reason why Coleman has been making these 'boring' products for SIXTY YEARS. They are the MOST economical lanterns (and stoves), and the BRIGHTEST lanterns and HOTTEST stoves. When I want to light up a campsite with 6 tents full of YMCA adventure guides, I pump up this lantern, light it, and hoist it 8 feet in the air. Then I can put away my 12v 8xD 2-bulb flourescent lamp. A gallon of Coleman white-gas (naptha) fuel has lasted us for 3 years of camping (about 12 campouts or 24 days/nights total - cooking and using this lantern.) This lamp gives enough light to throw a football or frisbee a decent distance (30 ft) at night. Best of all : EVERYONE ELSE WILL BE JEALOUS !!!",
+                "date": "2016-04-23",
+                "rate": 5
+                },{
+                "reviewer_name": "walmart.com",
+                "review": "This lantern is almost twice as bright as any I have owned. And the fact that it can run on unleaded gas from the corner gas station, makes it an awesome lantern. The convenience of using gas is a great plus. It makes it quick and easy. The lantern is sturdy and well built. The Coleman design has not changed a lot over time but if it aint broke, don't fix it. It comes with a small filtered funnel to aid in filling as well as two mantles to get you started. I got this powerhouse on sale and is has been well worth it.",
+                "date": "2015-08-09",
+                "rate": 4.9
+                }
+            ],
+            "averageRate": 4.9
+        }
+    }]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </when>
+            <when expression="#[attributes.uriParams.product_id == '7890010']">
+                <ee:transform doc:name="Product 7890010" doc:id="4c9a2eb8-2fb3-4e77-9806-67c26edbc89a">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+        "id": 7890010,
+        "price": {
+        "value": 49.00,
+        "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 43.88,
+            "currency": "USD"
+        },
+        "name": "Swarovski Crystalline Ballpoint Pen",
+        "description": "Your sparkling sense of style shines through with this stunning Swarovski crystalline pen with replaceable ink cartridge. Use it to record your most luxurious secrets and most fabulous thoughts. Available in silver-tone, 18k gold-plated and 18k rose gold tone-plated metal.",
+        "keywords": ["Swarovski", "Ballpoint"],
+        "copy": "Swarovski Crystalline Ballpoint Pen - Rose Gold Tone - 5224390",
+        "image": {
+        "id": 8540010,
+        "url": "https://encrypted-tbn2.gstatic.com/shopping?q=tbn:ANd9GcSMqg3PdM2510rvpTuawRe4wk-yOSA8p73EhoiratHb8FYgk_vqw4pkbehC6i__jFibXwPHa1E3&usqp=CAY"
+        },
+        "company": {
+            "id": 4607991,
+            "name": "Macy's",
+            "address" : {
+                "country": "USA",
+                "state": "CA",
+                "city": "San Francisco",
+                "street_address": "170 O'Farrell Street",
+                "zip": 94102
+            }
+        },
+        "category": "Pen",
+        "review": {
+            "reviews": [],
+            "averageRate": 0.0
+        }
+    }]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </when>
+            <when expression="#[attributes.uriParams.product_id == '7890011']">
+                <ee:transform doc:name="Product 7890011" doc:id="969b878c-5daf-46af-bb7b-91e2ffd37f69">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+        "id": 7890011,
+        "price": {
+	        "value": 68.59,
+	        "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 64.88,
+            "currency": "USD"
+        },
+        "name": "Coleman Sundome 2-Person Tent",
+        "description": "2 person 1 room domed tent. Great for small family solo travelers and first time campers. Easy two pole set up with shock corded 8.5 mm fiberglass poles that slip into continuous pole sleeves. Pin and ring design and instaclip attachments. Durable carry bag with separate storage bags for tents poles and stakes and sewn on instructions. Features: exclusive weatherTec system keeps you dry. Adjustable Variflo ventilation front zip door and vent window interior gear pocket and electrical access port and polyethylene. 1000 D- 140 g/sqm floor.",
+        "keywords": ["Tents", "Coleman", "Dome", "Camping", "2Person", "Four Season", "With Carry Bag"],
+        "copy": "Coleman Sundome 2-Person Tent, Green",
+        "image": {
+	        "id": 8540011,
+	        "url": "https://encrypted-tbn0.gstatic.com/shopping?q=tbn:ANd9GcTAB-NLTn_7HFbw2LhGAUNRosCjv5nvlyEWDjUyBuMlp9Zg5qEScR-EOUdKmh_ueKNA8JCDm2v0&usqp=CAY"
+        },
+        "company": {
+            "id": 4607992,
+            "name": "Macy's",
+            "address" : {
+                "country": "USA",
+                "state": "CA",
+                "city": "San Francisco",
+                "street_address": "170 O'Farrell Street",
+                "zip": 94102
+            }
+        },
+        "category": "Tent",
+        "review": {
+            "reviews": [],
+            "averageRate": 0.0
+        }
+    }]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </when>
+            <when expression="#[attributes.uriParams.product_id =='7890012']">
+                <ee:transform doc:name="Product 7890012" doc:id="ac73fe9b-7bb5-46d4-a3ab-c5656380d21a">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+        "id": 7890012,
+        "price": {
+	        "value": 204.74,
+	        "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 200.88,
+            "currency": "USD"
+        },
+        "name": "Floureon 42000mAh Portable Power Station Emergency External Battery Pack Generator Backup",
+        "description": "AC output is customized according to different countries, areas. a)Please keep the device away from coin, jewelry, keys or other metal object or there will be short circuit hazard. b)Please don't heat this device. Throw the device in the fire, water and other liquid container is not allowed. Please keep the device away from the sun directly. c)Please keep the device away from high humidity and dusty environment d)Please don't crash the device. Open the device privately is not allowed e)Please don't fall down and hard shock on this device. This is normal.",
+        "keywords": ["Charger", "Powerbank", "Battery"],
+        "copy": "Floureon 42000mAh Portable Power Station Emergency External Battery Pack Generator Backup, 200W(Max) 120V 2 AC Outlets/4 USB Ports/Solar Input, Power",
+        "image": {
+	        "id": 8540012,
+	        "url": "https://encrypted-tbn2.gstatic.com/shopping?q=tbn:ANd9GcTwAq4Kn9qdOEMn0aeZkxL5NXEIkp_BPIJ79a6K62Xlz-y0ZRimB5Km18b7rODNyOAF1fmKBBk&usqp=CAE"
+        },
+        "company": {
+            "id": 4607992,
+            "name": "Macy's",
+            "address" : {
+                "country": "USA",
+                "state": "CA",
+                "city": "San Francisco",
+                "street_address": "170 O'Farrell Street",
+                "zip": 94102
+            }
+        },
+        "category": "Battery",
+        "review": {
+            "reviews": [],
+            "averageRate": 0.0
+        }
+}]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </when>
+            <when expression="#[attributes.uriParams.product_id =='7890013']">
+                <ee:transform doc:name="Product 7890013" doc:id="703c4088-f691-42f3-9522-3b07a3bc929c">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+        "id": 7890013,
+        "price": {
+            "value": 6.99,
+            "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 4.88,
+            "currency": "USD"
+        },
+        "name": "Mattel UNO Card Game",
+        "description": "Easy to pick up...impossible to put down. Play by matching color or number, or play an action card against your opponent. When you're down to one card, don't forget to yell \"UNO!\" Contains 108 cards and instructions. For 2 to 10 players. Ages 7 and older.",
+        "keywords": ["cards", "cardgames", "games"],
+        "copy": "Mattel UNO Card Game",
+        "image": {
+            "id": 8540013,
+            "url": "https://encrypted-tbn3.gstatic.com/shopping?q=tbn:ANd9GcRAGd8aVBgzIinWYF-YCl1TCwi1agSVjqIWmA3RSZenW8KOeYQC&usqp=CAY"
+        },
+        "company": {
+            "id": 4607992,
+            "name": "Macy's",
+            "address" : {
+                "country": "USA",
+                "state": "CA",
+                "city": "San Francisco",
+                "street_address": "170 O'Farrell Street",
+                "zip": 94102
+            }
+        },
+        "category": "Games",
+        "review": {
+            "reviews": [],
+            "averageRate": 0.0
+        }
+	}]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </when>
+            <when expression="#[attributes.uriParams.product_id =='7890014']">
+                <ee:transform doc:name="Product 7890014" doc:id="55c3cba4-42a3-4176-9bc2-d606da716155">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+        "id": 7890014,
+        "price": {
+            "value": 6.44,
+            "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 4.88,
+            "currency": "USD"
+        },
+        "name": "Water Bottle",
+        "description": "This 3 gallon stackable water bottle is perfect for storing liquid and serving to a large amount of people. Proudly made, it is guaranteed to last a lifetime with its BPA free material and easy-to-grip handle. You'll never have to worry",
+        "keywords": ["water", "botle"],
+        "copy": "Water Bottle",
+        "image": {
+            "value": 6.44,
+            "currency": "USD"
+        },
+        "company": {
+            "id": 4607992,
+            "name": "Macy's",
+            "address" : {
+                "country": "USA",
+                "state": "CA",
+                "city": "San Francisco",
+                "street_address": "170 O'Farrell Street",
+                "zip": 94102
+            }
+        },
+        "category": "water",
+        "review": {
+            "reviews": [],
+            "averageRate": 0.0
+        }
+	}]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </when>
+            <when expression="#[attributes.uriParams.product_id =='7890015']">
+                <ee:transform doc:name="Product 7890015" doc:id="e596376c-397d-4aaa-b210-3f6aee5136b2">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+        "id": 7890015,
+        "price": {
+            "value": 9.00,
+            "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 7.22,
+            "currency": "USD"
+        },
+        "name": "Campfire Mini Marshmallows Packs - White 12-Piece Box",
+        "description": "Ancient Egyptians were probably the first people to enjoy the treats we know today as marshmallows. As early as 2000 BCE, Egyptians were squeezing sap from the mallow plant and mixing it with nuts and honey to create a dessert so rare and delicious, it was reserved for royalty. We have no way of knowing what these early marshmallows looked like -- the pillowy shapes with which we are familiar today didn’t originate until the 19th century, when confectioners in France learned how to create a more stable version involving gelatin. Not all marshmallows are created equal. Take these minis, for example -- unlike their bigger brothers, these tiny treats don’t fare well in a campfire. But they still pack a ton of marshmallowy goodness in itty bitty bite-size form! These sweet little things are perfect in hot cocoa, or they make great solo snacks when you’re crave a little surge of yum. And with 90 calories and no fat per pack, they're ideal for a guilt-free nibble!",
+        "keywords": ["candies", "campfire"],
+        "copy": "Campfire Mini Marshmallows Packs - White 12-Piece Box",
+        "image": {
+            "id": 8540015,
+            "url": "https://encrypted-tbn2.gstatic.com/shopping?q=tbn:ANd9GcQCHUAWnjyenL7VNfKyjXqyyuSvCdcelRSkhwwQnoVTgXBIhxvWnhU7aH8DSdz4hKz9BZkWQSdT&usqp=CAE"
+        },
+        "company": {
+            "id": 4607992,
+            "name": "Macy's",
+            "address" : {
+                "country": "USA",
+                "state": "CA",
+                "city": "San Francisco",
+                "street_address": "170 O'Farrell Street",
+                "zip": 94102
+            }
+        },
+        "category": "Candies",
+        "review": {
+            "reviews": [],
+            "averageRate": 0.0
+        }
+	}]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </when>
+            <when expression="#[attributes.uriParams.product_id =='7890016']">
+                <ee:transform doc:name="Product 7890016" doc:id="a233d489-7fc2-4003-8f1d-f26f38ec203b">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+        "id": 7890016,
+        "price": {
+            "value": 49.95,
+            "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 44.44,
+            "currency": "USD"
+        },
+        "name": "Waterproof Outdoor Blanket Green | L.L.Bean",
+        "description": "Don't let a little wet grass ruin your picnic or breakfast at the campsite. This versatile waterproof blanket has a rugged polyurethane-coated nylon backing that keeps moisture from seeping through to the supersoft fleece surface. Top- 100% polyester fleece. Bottom- 100% nylon. Machine wash and dry. Super-soft polyester-fleece surface. Rugged polyurethane-coated nylon backing keeps moisture from seeping through. Great choice for sporting events, the beach on a boat or in your car's safety kit. Stuff sack included.",
+        "keywords": ["blanket", "water", "proof"],
+        "copy": "Waterproof Outdoor Blanket Green | L.L.Bean",
+        "image": {
+            "id": 8540016,
+            "url": "https://encrypted-tbn2.gstatic.com/shopping?q=tbn:ANd9GcQCHUAWnjyenL7VNfKyjXqyyuSvCdcelRSkhwwQnoVTgXBIhxvWnhU7aH8DSdz4hKz9BZkWQSdT&usqp=CAE"
+        },
+        "company": {
+            "id": 4607992,
+            "name": "Macy's",
+            "address" : {
+                "country": "USA",
+                "state": "CA",
+                "city": "San Francisco",
+                "street_address": "170 O'Farrell Street",
+                "zip": 94102
+            }
+        },
+        "category": "Blanket",
+        "review": {
+            "reviews": [],
+            "averageRate": 0.0
+        }
+	}]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </when>
+            <when expression="#[attributes.uriParams.product_id =='7890017']">
+                <ee:transform doc:name="Product 7890017" doc:id="c6273c1b-a80b-4030-b2ef-76df163a664c">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+        "id": 7890017,
+        "price": {
+            "value": 8.99,
+            "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 6.88,
+            "currency": "USD"
+        },
+        "name": "Wilson Sporting Goods Traditional Soccer Ball Size 4 Synthetic Leather",
+        "description": "Synthetic leather cover with shiny finish in a traditional black and white pattern. Superior playability. Butyl bladder for excellent air retention, shape & feel. Official size & weight.",
+        "keywords": ["ball", "soccer"],
+        "copy": "Wilson Sporting Goods Traditional Soccer Ball Size 4 Synthetic Leather",
+        "image": {
+            "id": 8540017,
+            "url": "https://encrypted-tbn2.gstatic.com/shopping?q=tbn:ANd9GcTr-XPLd0DzVWhmg8THgYqfMjHOdFBeqUdkeZ8VCyLB7d4q41_Y9TD6WTr1Ab_0nYR4Wvf1JhwX&usqp=CAY"
+        },
+        "company": {
+            "id": 4607992,
+            "name": "Macy's",
+            "address" : {
+                "country": "USA",
+                "state": "CA",
+                "city": "San Francisco",
+                "street_address": "170 O'Farrell Street",
+                "zip": 94102
+            }
+        },
+        "category": "Ball",
+        "review": {
+            "reviews": [],
+            "averageRate": 0.0
+        }
+	}]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </when>
+            <when expression="#[attributes.uriParams.product_id =='7890018']">
+                <ee:transform doc:name="Product 7890018" doc:id="a5ecb611-15ac-442f-9936-8bf4f7926ad6">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+        "id": 7890018,
+        "price": {
+            "value": 4.99,
+            "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 3.77,
+            "currency": "USD"
+        },
+        "name": "Repel Family Dry Aerosol Insect Repellent, 10% Deet - 4 fl oz spray",
+        "description": "Repel Family Dry Aerosol provides hour of protection from mosquitoes and biting flies. Also repel ticks, chiggers, no-see-ums, gnats and fleas. Repel Family Dry Aerosol offers long-lasting protection-- it s not greasy and has no unpleasant odor.",
+        "keywords": ["insect", "repellent"],
+        "copy": "Repel Family Dry Aerosol Insect Repellent, 10% Deet - 4 fl oz spray",
+        "image": {
+            "id": 8540018,
+            "url": "https://encrypted-tbn3.gstatic.com/shopping?q=tbn:ANd9GcRqw24-M_195-JQoMOSSVlWEWjlM5UcJI-DqK2zYWVZHsbTNBdneFQKa_WnjjT2nFmn39X920Mc&usqp=CAY"
+        },
+        "company": {
+            "id": 4607992,
+            "name": "Macy's",
+            "address" : {
+                "country": "USA",
+                "state": "CA",
+                "city": "San Francisco",
+                "street_address": "170 O'Farrell Street",
+                "zip": 94102
+            }
+        },
+        "category": "Repellent",
+        "review": {
+            "reviews": [],
+            "averageRate": 0.0
+        }
+	}]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </when>
+            <when expression="#[attributes.uriParams.product_id =='7890019']">
+                <ee:transform doc:name="Product 7890019" doc:id="60e51e78-6408-44ad-a748-170c7d4d7255">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+        "id": 7890019,
+        "price": {
+            "value": 6.99,
+            "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 5.55,
+            "currency": "USD"
+        },
+        "name": "Ignite-O FS855-24 Fire Starter Packets",
+        "description": "The Quick, Clean & Easy Way to Start Your Fire! Big flame Burns up to 15 minutes No Fumes; No Residue Just light the packet! The cleaner way to light your fire for fireplaces, wood stoves, charcoal grills and campfires. Contains 20 packets.",
+        "keywords": ["fire", "starter"],
+        "copy": "Ignite-O FS855-24 Fire Starter Packets",
+        "image": {
+            "id": 8540019,
+            "url": "https://encrypted-tbn0.gstatic.com/shopping?q=tbn:ANd9GcQuq5gS5UD67LAemZvDEhaE332K8Z3sjlYxr75shbA0Ezl_As8&usqp=CAY"
+        },
+        "company": {
+            "id": 4607992,
+            "name": "Macy's",
+            "address" : {
+                "country": "USA",
+                "state": "CA",
+                "city": "San Francisco",
+                "street_address": "170 O'Farrell Street",
+                "zip": 94102
+            }
+        },
+        "category": "Utilities",
+        "review": {
+            "reviews": [],
+            "averageRate": 0.0
+        }
+	}]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </when>
+            <when expression="#[attributes.uriParams.product_id =='7890020']">
+                <ee:transform doc:name="Product 7890020" doc:id="4e878c1b-6e30-48a2-adbf-de81fceaa2e4">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+        "id": 7890020,
+        "price": {
+            "value": 130.89,
+            "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 125.11,
+            "currency": "USD"
+        },
+        "name": "Clay Alder Home Owsley Futon Mattress",
+        "description": "Clay Alder Home Owsley Full-size 8-inch Futon Mattress Give house guests a comfortable place to rest with this 8-inch futon mattress.",
+        "keywords": ["Futon", "Mattress"],
+        "copy": "Clay Alder Home Owsley Full-Size 8-Inch Futon Mattress (Khaki (Green))",
+        "image": {
+            "id": 8540020,
+            "url": "https://encrypted-tbn3.gstatic.com/shopping?q=tbn:ANd9GcTHWjrNzzzE1tLM0dYQCIRjwY1-Et00jLPuaD6VjzH1HKiVeH9BGHH60USGE-I&usqp=CAE"
+        },
+        "company": {
+            "id": 4607992,
+            "name": "Macy's",
+            "address" : {
+                "country": "USA",
+                "state": "CA",
+                "city": "San Francisco",
+                "street_address": "170 O'Farrell Street",
+                "zip": 94102
+            }
+        },
+        "category": "mattress",
+        "review": {
+            "reviews": [],
+            "averageRate": 0.0
+        }
+	}]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </when>
+            <when expression="#[attributes.uriParams.product_id =='7890021']">
+                <ee:transform doc:name="Product 7890021" doc:id="8828b18a-c14a-42ec-a80a-5b8c96a08c1a">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+        "id": 7890021,
+        "price": {
+            "value": 700,
+            "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 791.33,
+            "currency": "USD"
+        },
+        "name": "Bed With Built-in Workstation",
+        "description": "Make the most of your children's bedroom floor space with this all-inclusive bedroom set! This loft bed features a stable and sturdy upper twin bunk, a separate lower bed on movable casters, and a built-in workstation to double as a handy computer desk. Mattress, box springs and bedding (comforters, sheets, pillows, etc.) are NOT included.",
+        "keywords": ["bed", "twin", "workstation"],
+        "copy": "Furniture of America Carmenie Twin Over Twin Loft Bed With Built-in Workstation (Oak (Brown))",
+        "image": {
+            "id": 8540021,
+            "url": "https://encrypted-tbn2.gstatic.com/shopping?q=tbn:ANd9GcTT4RUgHVYhGF5gCj-8KzLh96rXB-k2I_YkEuUib09lOjQazrDnImqONtmBqSwhwVUOpTJkXsVB&usqp=CAY"
+        },
+        "company": {
+            "id": 4607992,
+            "name": "Macy's",
+            "address" : {
+                "country": "USA",
+                "state": "CA",
+                "city": "San Francisco",
+                "street_address": "170 O'Farrell Street",
+                "zip": 94102
+            }
+        },
+        "category": "Bed",
+        "review": {
+            "reviews": [],
+            "averageRate": 0.0
+        }
+	}]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </when>
+            <when expression="#[attributes.uriParams.product_id =='7890022']">
+                <ee:transform doc:name="Product 7890022" doc:id="2202d82d-4dd6-4a63-a764-b555a092c894">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+        "id": 7890022,
+        "price": {
+            "value": 25.00,
+            "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 20.00,
+            "currency": "USD"
+        },
+        "name": "Book Rack Storage Bookshelf",
+        "description": "Espresso Kids Book Rack Storage Bookshelf The space-saving Tot Tutors Kids Book Rack Storage Bookshelf with book-storage sling pockets displays book covers forward for easy recognition by young children. The 4 colorful, deep, sleeves hold books of almost any size for easy book viewing.",
+        "keywords": ["Bookshelf", "Rack"],
+        "copy": "Tot Tutors WO595 Espresso Kids Book Rack Storage Bookshelf",
+        "image": {
+            "id": 8540022,
+            "url": "https://encrypted-tbn3.gstatic.com/shopping?q=tbn:ANd9GcTfOcaGAdB3cgqc7gp4xQxX8q6tSPgb6jFt0IXpaKNRIkf4yq8Od4xVFhRxaijAJCpNclrycC5c&usqp=CAY"
+        },
+        "company": {
+            "id": 4607992,
+            "name": "Macy's",
+            "address" : {
+                "country": "USA",
+                "state": "CA",
+                "city": "San Francisco",
+                "street_address": "170 O'Farrell Street",
+                "zip": 94102
+            }
+        },
+        "category": "Bookshelf",
+        "review": {
+            "reviews": [],
+            "averageRate": 0.0
+        }
+	}]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </when>
+            <when expression="#[attributes.uriParams.product_id =='7890023']">
+                <ee:transform doc:name="Product 7890023" doc:id="da59bf96-334a-4aba-a6ed-3fc760808cbd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+        "id": 7890023,
+        "price": {
+            "value": 144.88,
+            "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 139.88,
+            "currency": "USD"
+        },
+        "name": "Chair Cubes",
+        "description": "Office Furniture > Chairs & Sofas Childrens Factory 910007 Chair Cube Set, Assorted - Polyethylene - 15\" Length x 15\" Width x 15\" Height Lightweight chairs conveniently provide multiple uses and can be used both indoors and outdoors. Use them as chairs with either a 6\" high seat or 9\" high seat. Or, flip them over to use them as a table or a seat for adults. Chairs are made from nontoxic, recyclable polyethylene for safe use by everyone.",
+        "keywords": [""],
+        "copy": "Chair Cubes - Set of Four",
+        "image": {
+            "id": 8540023,
+            "url": "https://encrypted-tbn2.gstatic.com/shopping?q=tbn:ANd9GcSWNJfDDiZAR56GlwbrlWIEy6Ug20ThENLB9YfAmhrHgnKcwA6M4Tgpqp4M3Wgvz9pQlluSTWib&usqp=CAE"
+        },
+        "company": {
+            "id": 4607992,
+            "name": "Macy's",
+            "address" : {
+                "country": "USA",
+                "state": "CA",
+                "city": "San Francisco",
+                "street_address": "170 O'Farrell Street",
+                "zip": 94102
+            }
+        },
+        "category": "Chair",
+        "review": {
+            "reviews": [],
+            "averageRate": 0.0
+        }
+	}]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </when>
+            <when expression="#[attributes.uriParams.product_id =='7890024']">
+                <ee:transform doc:name="Product 7890024" doc:id="3005a639-e3c1-4fd7-a290-e62703aabfdc">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+        "id": 7890024,
+        "price": {
+            "value": 85.98,
+            "currency": "USD"
+        },
+        "discountedPrice": {
+            "value": 80.98,
+            "currency": "USD"
+        },
+        "name": "Safavieh Kids Transitional Geometric",
+        "description": "Save Money. These hand-tufted 100 percent pure wool rugs are designed in stimulating colors and patterns that will brighten and energize the entire character of your child’s bedroom, playroom or nursery. Available in a wide selection of styles, colors and sizes. Color: Blue. Age Group: Infant.",
+        "keywords": ["Safavieh", "carpet"],
+        "copy": "Safavieh Kids Transitional Geometric Hand-Tufted Wool Navy (Blue)/ Ivory Area Rug (4' X 6') (SFK907N-4), Size 4' X 6'",
+        "image": {
+            "id": 8540024,
+            "url": "https://www.google.com/aclk?sa=l&ai=DChcSEwj4-cSE2eTaAhWEoOwKHYsYCs8YABAdGgJwag&sig=AOD64_3YIKKcSjbgU3o4JJ4G2cBh_Nk3Eg&ctype=5&q=&ved=0ahUKEwiez8GE2eTaAhXjy1QKHQueABYQwjwIlwE&adurl="
+        },
+        "company": {
+            "id": 4607992,
+            "name": "Macy's",
+            "address" : {
+                "country": "USA",
+                "state": "CA",
+                "city": "San Francisco",
+                "street_address": "170 O'Farrell Street",
+                "zip": 94102
+            }
+        },
+        "category": "Carpet",
+        "review": {
+            "reviews": [],
+            "averageRate": 0.0
+        }
+	}]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </when>
+            <when expression="#[attributes.uriParams.product_id =='76241']">
+                <ee:transform doc:name="Product 76241" doc:id="41302d7e-2a32-435a-9aca-7ef6f715f3c7">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    "id": 76241,
+    "price": {
+      "value": 135.99,
+      "currency": "USD"
+    },
+    "discountedPrice": {
+      "value": 99.98,
+      "currency": "USD"
+    },
+    "name": "Base Camp Tent",
+    "description": "* Great beginner tent\n* Strong and durable\n* Great for families",
+    "keywords": [
+      "camp",
+      "tent"
+    ],
+    "copy": "Base Camp Tent",
+    "image": {
+      "id": 8540025,
+      "url": "https://github.com/connect2018/product-images/blob/master/tent_brown.png?raw=true"
+    },
+    "company": {
+      "id": 4607992,
+      "name": "Macy's",
+      "address": {
+        "country": "USA",
+        "state": "CA",
+        "city": "San Francisco",
+        "street_address": "170 O'Farrell Street",
+        "zip": 94102
+      }
+    },
+    "category": "Camping",
+    "review": {
+      "reviews": [
+        
+      ],
+      "averageRate": 0.0
+    }
+  }]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </when>
+            <when expression="#[attributes.uriParams.product_id =='89031']">
+                <ee:transform doc:name="Product 89031" doc:id="41302d7e-2a32-435a-9aca-7ef6f715f3c7">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    "id": 89031,
+    "price": {
+      "value": 273.95,
+      "currency": "USD"
+    },
+    "name": "Camo Trek Tent",
+    "description": "* Army styling\n* Weather proof\n* Automatic setup",
+    "keywords": [
+      "camp",
+      "tent"
+    ],
+    "copy": "Camo Trek Tent",
+    "image": {
+      "id": 8540026,
+      "url": "https://github.com/connect2018/product-images/blob/master/tent_brown.png?raw=true"
+    },
+    "company": {
+      "id": 4607992,
+      "name": "Macy's",
+      "address": {
+        "country": "USA",
+        "state": "CA",
+        "city": "San Francisco",
+        "street_address": "170 O'Farrell Street",
+        "zip": 94102
+      }
+    }
+}]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </when>
+            <when expression="#[attributes.uriParams.product_id =='87623']">
+                <ee:transform doc:name="Product 87623">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    "id": 87623,
+    "price": {
+      "value": 329.99,
+      "currency": "USD"
+    },
+    "discountedPrice": {
+      "value": 279.99,
+      "currency": "USD"
+    },
+    "name": "Outlands Explorer Tent",
+    "description": "* Strong and lightweight\n* All weather\n* Self-erecting",
+    "keywords": [
+      "camp",
+      "tent"
+    ],
+    "copy": "Outlands Explorer Tent",
+    "image": {
+      "id": 8540027,
+      "url": "https://github.com/connect2018/product-images/blob/master/tent_colorful.png?raw=true"
+    },
+    "company": {
+      "id": 4607992,
+      "name": "Macy's",
+      "address": {
+        "country": "USA",
+        "state": "CA",
+        "city": "San Francisco",
+        "street_address": "170 O'Farrell Street",
+        "zip": 94102
+      }
+    },
+    "category": "Camping",
+    "review": {
+      "reviews": [
+        
+      ],
+      "averageRate": 0.0
+    }
+  }]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </when>
+            <when expression="#[attributes.uriParams.product_id =='25458']">
+                <ee:transform doc:name="Product 25458">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    "id": 25458,
+    "price": {
+      "value": 299.95,
+      "currency": "USD"
+    },
+    "discountedPrice": {
+      "value": 265.00,
+      "currency": "USD"
+    },
+    "name": "Eureka Mountain Tent",
+    "description": "* Weather any storm\n* Latest fabrics\n* Auto setup and takedown",
+    "keywords": [
+      "camp",
+      "tent"
+    ],
+    "copy": "Eureka Mountain Tent",
+    "image": {
+      "id": 8550027,
+      "url": "https://github.com/connect2018/product-images/blob/master/tent_orange.png?raw=true"
+    },
+    "company": {
+      "id": 4607992,
+      "name": "Macy's",
+      "address": {
+        "country": "USA",
+        "state": "CA",
+        "city": "San Francisco",
+        "street_address": "170 O'Farrell Street",
+        "zip": 94102
+      }
+    },
+    "category": "Camping",
+    "review": {
+      "reviews": [
+        
+      ],
+      "averageRate": 0.0
+    }
+  }]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </when>
+            <when expression="#[attributes.uriParams.product_id =='09826']">
+                <ee:transform doc:name="Product 09826" doc:id="7dc8880b-41ef-42e8-b728-7380c5d61548">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    "id": "09826",
+    "price": {
+      "value": 28.95,
+      "currency": "USD"
+    },
+    "discountedPrice": {
+      "value": 24.37,
+      "currency": "USD"
+    },
+    "name": "Workhorse Camp Lantern",
+    "description": "* 650 Lumen LED\n* Collapsible\n* Classic look",
+    "keywords": [
+      "lantern"
+    ],
+    "copy": "Workhorse Camp Lantern",
+    "image": {
+      "id": 8540028,
+      "url": "https://github.com/connect2018/product-images/blob/master/lantern_red.png?raw=true"
+    },
+    "company": {
+      "id": 4607992,
+      "name": "Macy's",
+      "address": {
+        "country": "USA",
+        "state": "CA",
+        "city": "San Francisco",
+        "street_address": "170 O'Farrell Street",
+        "zip": 94102
+      }
+    },
+    "category": "Lantern",
+    "review": {
+      "reviews": [
+        
+      ],
+      "averageRate": 0.0
+    }
+  }]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </when>
+            <when expression="#[attributes.uriParams.product_id =='19632']">
+                <ee:transform doc:name="Product 19632">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    "id": 19632,
+    "price": {
+      "value": 32.99,
+      "currency": "USD"
+    },
+    "discountedPrice": {
+      "value": 27.86,
+      "currency": "USD"
+    },
+    "name": "Monster Lantern + Power",
+    "description": "* 20 - 640 Lumen\n* Built-in power bank\n* Adjustable output",
+    "keywords": [
+      "lantern"
+    ],
+    "copy": "Monster Lantern + Power",
+    "image": {
+      "id": 8540029,
+      "url": "https://github.com/connect2018/product-images/blob/master/lantern_orange.png?raw=true"
+    },
+    "company": {
+      "id": 4607992,
+      "name": "Macy's",
+      "address": {
+        "country": "USA",
+        "state": "CA",
+        "city": "San Francisco",
+        "street_address": "170 O'Farrell Street",
+        "zip": 94102
+      }
+    },
+    "category": "Lantern",
+    "review": {
+      "reviews": [
+        
+      ],
+      "averageRate": 0.0
+    }
+  }]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </when>
+            <when expression="#[attributes.uriParams.product_id =='56271']">
+                <ee:transform doc:name="Product 56271">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    "id": 56271,
+    "price": {
+      "value": 12.99,
+      "currency": "USD"
+    },
+    "discountedPrice": {
+      "value": 9.99,
+      "currency": "USD"
+    },
+    "name": "Industrial Flashlight Lantern",
+    "description": "* Rugged and water-resistant\n* Up to 110 Lumen\n* Lasts up to 4 hours",
+    "keywords": [
+      "lantern"
+    ],
+    "copy": "Industrial Flashlight Lantern",
+    "image": {
+      "id": 8640029,
+      "url": "https://github.com/connect2018/product-images/blob/master/lantern_yellow.png?raw=true"
+    },
+    "company": {
+      "id": 4607992,
+      "name": "Macy's",
+      "address": {
+        "country": "USA",
+        "state": "CA",
+        "city": "San Francisco",
+        "street_address": "170 O'Farrell Street",
+        "zip": 94102
+      }
+    },
+    "category": "Lantern",
+    "review": {
+      "reviews": [
+        
+      ],
+      "averageRate": 0.0
+    }
+  }]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </when>
+            <when expression="#[attributes.uriParams.product_id =='87265']">
+                <ee:transform doc:name="Product 87265" doc:id="9b4adb8e-1294-46cc-b8c8-8a8120183b2a">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    "id": 87265,
+    "price": {
+      "value": 44.25,
+      "currency": "USD"
+    },
+    "name": "All Purpose Water Shoes",
+    "description": "* Water-ready webbing\n* Ultra light\n* Shock-absorbing heel",
+    "keywords": [
+      "shoes"
+    ],
+    "copy": "All Purpose Water Shoes",
+    "image": {
+      "id": 8540031,
+      "url": "https://github.com/connect2018/product-images/blob/master/shoes_blue.png?raw=true"
+    },
+    "company": {
+      "id": 4607992,
+      "name": "Macy's",
+      "address": {
+        "country": "USA",
+        "state": "CA",
+        "city": "San Francisco",
+        "street_address": "170 O'Farrell Street",
+        "zip": 94102
+      }
+    },
+    "category": "Shoes",
+    "review": {
+      "reviews": [
+        
+      ],
+      "averageRate": 0.0
+    }
+  }]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </when>
+            <when expression="#[attributes.uriParams.product_id =='86623']">
+                <ee:transform doc:name="Product 86623">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    "id": 86623,
+    "price": {
+      "value": 49.95,
+      "currency": "USD"
+    },
+    "discountedPrice": {
+      "value": 39.96,
+      "currency": "USD"
+    },
+    "name": "Outdoor Tech Powerbank",
+    "description": "* 6000 mAh lithium polymer\n* Portable and lightweight\n* Dual USB",
+    "keywords": [
+      "charging",
+      "charger",
+      "Charging packs",
+      "battery"
+    ],
+    "copy": "Outdoor Tech Powerbank",
+    "image": {
+      "id": 8540032,
+      "url": "https://github.com/connect2018/product-images/blob/master/powerbank_black.png?raw=true"
+    },
+    "company": {
+      "id": 4607992,
+      "name": "Macy's",
+      "address": {
+        "country": "USA",
+        "state": "CA",
+        "city": "San Francisco",
+        "street_address": "170 O'Farrell Street",
+        "zip": 94102
+      }
+    },
+    "category": "Battery",
+    "review": {
+      "reviews": [
+        
+      ],
+      "averageRate": 0.0
+    }
+  }]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </when>
+            <when expression="#[attributes.uriParams.product_id =='10028']">
+                <ee:transform doc:name="Product 10028">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    "id": 10028,
+    "price": {
+      "value": 39.98,
+      "currency": "USD"
+    },
+    "discountedPrice": {
+      "value": 31.98,
+      "currency": "USD"
+    },
+    "name": "Green Life Solar Charger",
+    "description": "* 24000 mAh lithium polymer\n* High-output solar panels\n* 3 USB outputs",
+    "keywords": [
+      "charging",
+      "charger",
+      "Charging packs",
+      "battery"
+    ],
+    "copy": "Green Life Solar Charger",
+    "image": {
+      "id": 8540033,
+      "url": "https://github.com/connect2018/product-images/blob/master/powerbank_green.png?raw=true"
+    },
+    "company": {
+      "id": 4607992,
+      "name": "Macy's",
+      "address": {
+        "country": "USA",
+        "state": "CA",
+        "city": "San Francisco",
+        "street_address": "170 O'Farrell Street",
+        "zip": 94102
+      }
+    },
+    "category": "Battery",
+    "review": {
+      "reviews": [
+        
+      ],
+      "averageRate": 0.0
+    }
+  }]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </when>
+            <when expression="#[attributes.uriParams.product_id =='71201']">
+                <ee:transform doc:name="Product 71201">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    "id": 71201,
+    "price": {
+      "value": 47.95,
+      "currency": "USD"
+    },
+    "name": "Eureka Cypress Sleeping Bag",
+    "description": "* Mummy style bag\n* For moderate climate\n* Polyfill (not down)",
+    "keywords": [
+      "Eureka!",
+      "Children's",
+      "Mummy",
+      "15° F",
+      "With Pocket",
+      "With Stuff Sack"
+    ],
+    "copy": "Eureka Cypress Sleeping Bag",
+    "image": {
+      "id": 8540034,
+      "url": "https://github.com/connect2018/product-images/blob/master/sleepingbag_green.png?raw=true"
+    },
+    "company": {
+      "id": 4907999,
+      "name": "The-House.com",
+      "address": {
+        "country": "USA",
+        "state": "MINNESOTA",
+        "city": "Minneapolis",
+        "street_address": "200 S Owasso Blvd E St Paul",
+        "zip": 55117
+      }
+    },
+    "category": "Sleeping Bags",
+    "review": {
+      "reviews": [
+        {
+          "reviewer_name": "Backcountry.com",
+          "review": "Just got this in yesterday for our little guy, but he won't get a chance to try it. It's just not packable. Compressed it measures 1'' in diameter and 13'' long. It won't fit in our packs so it's going back. Bummer because the price is really great. I'm sure it would work great for car camping or slumber parties, but if you need to pack look elsewhere.",
+          "date": "2015-06-10",
+          "rate": 2
+        },
+        {
+          "reviewer_name": "sunnysports.com",
+          "review": "I am 5'2'' and about 100 lbs so I ordered the children's bag. There's still room to grow!! I haven't tested it out yet but I can't wait to try it in my hammock on Mt. Washington!",
+          "date": "2015-06-10",
+          "rate": 4
+        }
+      ],
+      "averageRate": 3
+    }
+  }]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </when>
+            <otherwise>
+                <ee:transform xsi:schemaLocation=" http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd  http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd  http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd  http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd" doc:id="fb36a39f-554c-4841-bdd1-84e0fcdec6f6" doc:name="Product not found">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{}]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </otherwise>
+        </choice>
+    </flow>
+    <flow name="get:\catalog\products\type\(product_type):catalog-config">
+        <choice doc:name="Choice" doc:id="00f76858-5bd3-4290-b6dd-49bfb8c1317d">
+            <when expression="#[attributes.uriParams.product_type == 'lantern']">
+                <java:new doc:name="lanterns productList" doc:id="55a9ed55-1cb7-4ca8-b2e5-4372ddf968ee" class="java.util.ArrayList" constructor="ArrayList()" target="productList" />
+                <ee:transform doc:name="Setting up arbritrage lantern list" doc:id="92ed4a7e-388e-44e4-b30b-2e3b70bbf1e6">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+[ "09826", "19632", "56271"]]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+                <foreach doc:name="For Each" doc:id="e267b096-6142-4475-9a09-efb2843338c0">
+                    <ee:transform doc:name="Transform Message" doc:id="9223455b-1eb2-4ad6-a3a0-c7cfd318f612">
+                        <ee:message>
+                            <ee:set-attributes><![CDATA[%dw 2.0
+output application/java
+---
+{
+	uriParams:
+		{
+			product_id : payload		
+		}
+}]]></ee:set-attributes>
+                        </ee:message>
+                    </ee:transform>
+                    <flow-ref doc:name="get:\catalog\products\(product_id):catalog-config" doc:id="5ab36482-e7d2-4ffe-aec9-c09e4ec729fa" name="get:\catalog\products\(product_id):catalog-config" />
+                    <ee:transform doc:name="Transform Message" doc:id="8ca75ec5-f39d-4168-9306-19cfa54d01fd">
+                        <ee:message>
+                            <ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+payload]]></ee:set-payload>
+                        </ee:message>
+                    </ee:transform>
+                    <scripting:execute engine="groovy" doc:name="Adding product to productList" doc:id="79cfbd55-e8e7-4816-885a-23947a82f787">
+                        <scripting:code>vars.productList.add(payload)</scripting:code>
+                    </scripting:execute>
+                </foreach>
+                <ee:transform doc:name="Lantern List" doc:id="583d7512-e44f-4a9d-a457-46f3cead2946">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+vars.productList]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </when>
+            <otherwise>
+                <ee:transform doc:name="All products" doc:id="c028a564-e0e4-464c-ae86-2b4fe31ed166">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+[
+  {
+    id: 7890001,
+    price: {
+      value: 47.95,
+      currency: "USD"
+    },
+    name: "Eureka Cypress Sleeping Bag",
+    description: "Made from the same warm material as the adult size for backpacking and family camping, Eureka's Cyprus Junior is a three-season sleeping bag with toasty ThermaShield insulation that's temperature rated at 15°F. The boy-specific junior size and fit reduces unnecessary weight and bulk while on the trail.",
+    keywords: [
+      "Eureka!", 
+      "Children's", 
+      "Mummy", 
+      "15° F", 
+      "With Pocket", 
+      "With Stuff Sack"
+    ],
+    copy: "Eureka 15°F Cypress Junior Sleeping Bag - Mummy (for Boys) - Grey/Green ( )",
+    image: {
+      id: 8540001,
+      url: "https://github.com/connect2018/product-images/blob/master/sleepingbag_green.png?raw=true"
+    },
+    company: {
+      id: 4907999,
+      name: "The-House.com",
+      address: {
+        country: "USA",
+        state: "MINNESOTA",
+        city: "Minneapolis",
+        street_address: "200 S Owasso Blvd E St Paul",
+        zip: 55117
+      }
+    },
+    category: "Sleeping Bags",
+    review: {
+      reviews: [
+        {
+          reviewer_name: "Backcountry.com",
+          review: "Just got this in yesterday for our little guy, but he won't get a chance to try it. It's just not packable. Compressed it measures 1'' in diameter and 13'' long. It won't fit in our packs so it's going back. Bummer because the price is really great. I'm sure it would work great for car camping or slumber parties, but if you need to pack look elsewhere.",
+          date: "2015-06-10",
+          rate: 2
+        }, 
+        {
+          reviewer_name: "sunnysports.com",
+          review: "I am 5'2'' and about 100 lbs so I ordered the children's bag. There's still room to grow!! I haven't tested it out yet but I can't wait to try it in my hammock on Mt. Washington!",
+          date: "2015-06-10",
+          rate: 4
+        }
+      ],
+      averageRate: 3
+    }
+  }, 
+  {
+    id: 7890002,
+    price: {
+      value: 69.95,
+      currency: "USD"
+    },
+    name: "Goal Zero Lighthouse 400",
+    description: "This 400-lumen (max. setting) lantern can be charged three ways: from the sun using Goal Zero solar panels (not included), from USB or manually with the hand crank built into the top. Full charge lasts up to 48 hours on the Li-NMC battery.",
+    keywords: [
+      "Goal Zero", 
+      "Lighthouse", 
+      "Camping light", 
+      "lantern"
+    ],
+    copy: "Goal Zero Lighthouse 400 - Camping light - LED - 3 W - warm white light - 3500 K - lantern",
+    image: {
+      id: 8540002,
+      url: "https://encrypted-tbn2.gstatic.com/shopping?q=tbn:ANd9GcTcg1_pBwGoE4XItBXqfhkq8sqCkoBs6ZLKX1JQv9gOxl3M-2vlHF-VX6j-SEMWnOPTuzLQ0VPV&usqp=CAY"
+    },
+    company: {
+      id: 4907998,
+      name: "REI",
+      address: {
+        country: "USA",
+        state: "CALIFORNIA",
+        city: "San Francisco",
+        street_address: "840 Brannan St",
+        zip: 94103
+      }
+    },
+    category: "Lantern",
+    review: {
+      reviews: [
+        {
+          reviewer_name: "goalzero.com",
+          review: "These lanterns are choked full of features. I would recommend these. The lantern features themselves are excellent then add on the USB hub and charging by sun, USB and a hand crank you have a lantern that is second to none. Cons: it seems the internal bettieries are not user replaceable or at least it is not document as user replaceable. The on board hanging hook/handle has slid out on me seems like there should be more tension to keep it in place. None of these Cons are crictal to me so I would buy this lantern again.",
+          date: "2016-10-02",
+          rate: 4
+        }, 
+        {
+          reviewer_name: "mec.ca",
+          review: "I bought this lantern about 2 yeara ago and have not regretted it. The battery has plenty power, it will easily last 2-3 nights without recharging. The light Britney's is exceptional. On the camp table it will easily give nice light to the campsite. The light source is adjustable from 180 to 360 degrees. I have not used the USB port but just having it is a comfort, knowing I can charge my phone etc. The lantern is of really high quality. There other features I didn't not comment on, all are good. I would recommend this lantern",
+          date: "2017-05-15",
+          rate: 5
+        }
+      ],
+      averageRate: 4.6
+    }
+  }, 
+  {
+    id: 7890003,
+    price: {
+      value: 199.95,
+      currency: "USD"
+    },
+    name: "Goal Zero Yeti 150 Solar Generator External Battery Pack/Power Inverter",
+    description: "This 400-lumen (max. setting) lantern can be charged three ways: from the sun using Goal Zero solar panels (not included), from USB or manually with the hand crank built into the top. Full charge lasts up to 48 hours on the Li-NMC battery.",
+    keywords: [
+      "GOAL ZERO", 
+      "Solar", 
+      "160 watt", 
+      "With Inverter", 
+      "Portable"
+    ],
+    copy: "Goal Zero Yeti 150 Solar Generator External Battery Pack/Power Inverter - 14 Ah - 14-29V",
+    image: {
+      id: 8540003,
+      url: "https://encrypted-tbn3.gstatic.com/shopping?q=tbn:ANd9GcTqPH1wK0UGXcI55H1rSwKukYH4_AfAU40OH_noVqt4M_E95UTOyZvkdAvMYE_tNfeV-c3Cao8&usqp=CAE"
+    },
+    company: {
+      id: 4907998,
+      name: "REI",
+      address: {
+        country: "USA",
+        state: "CALIFORNIA",
+        city: "San Francisco",
+        street_address: "840 Brannan St",
+        zip: 94103
+      }
+    },
+    category: "Battery",
+    review: {
+      reviews: [
+        {
+          reviewer_name: "goalzero.com",
+          review: "I bought this on sale for the camping event around I think Memorial day. I have used it 3 different times now camping out on the island in Casco Bay in Maine. I was worried about it after the 2nd day because it did not seem to charge the same as it did the 1st. We did use it heavier on this last 4 day event, Charging 2 smart phones, 1 iPad2, 1 lighthouse 250, and we ran 3 of the new Light-a-Life 350's on it for probably 1 hour making and eating dinner each night. It recharged to full the 1st night with my Nomad 20 and Nomad 7 in tandem. The 2nd day it recharged to 100% again, the third day it was better than 80% and the last day I did not bother as we had to pack up. It never dropped below 60% until the last day and we used it to beat the band. Admittedly I do want to step up to the Yeti 400 for something with more power on hand. But that's cause I am too Boy scout I want to bring something out there for 4 days and be able to not have to worry about solar if the weather is not good for solar. But I can't complain this power pack delivered and held up great.",
+          date: "2015-11-18",
+          rate: 5
+        }, 
+        {
+          reviewer_name: "Home Depot",
+          review: "I wanted this generator but was nervous about purchasing it. If it didn't work or something went wrong, how would I return it. Viewed this item on many other sites and decided to purchase with HD because I could easily return it if needed. I've had the generator for almost a month. This generator is SO QUIET! So far I charged a lamp, I Pad and phone. There is nothing to do, it comes right out of the box ready to go. You may need to charge a little but mine arrived charged. It's compact, easy to move around and has many ports. At this point I am considering upgrading to the larger one but wanted to test this out before investing more money. I gave it four stars only because I've had it such a short time and I'm still testing it, but so far so good. Hurricane Sandy was a wake up call us. Please take a moment to look around, we have hurricanes, earthquakes, power outages etc. The times are changing make sure your family is prepared, spiritually, mentally, physically. If the grid goes down it will be nice to have power and the ability to keep in touch with your family.",
+          date: "2015-04-07",
+          rate: 4
+        }
+      ],
+      averageRate: 4.3
+    }
+  },
+  {
+        "id": 7890006,
+        "price": {
+        "value": 74.99,
+        "currency": "USD"
+        },
+        "name": "Coleman Lantern",
+        "description": "Take the convenience of Three lights in one with you with the Coleman Trifecta LED Lantern. During an emergency, pop one of the three lights off the base for a personal flashlight. They recharge once theyre back on the base for hands-free light. The lantern runs cool so its always safe to touch, even when its been on for hours. Model # 2000013867 Features: Even distribution of light Choose your power, 4D batteries, or CPX 6 rechargeable Hi/Low for optimal light output 3 removable panels",
+        "keywords": [],
+        "copy": "Coleman CPX 6 Triago Lantern 61450663",
+        "image": {
+        "id": 8540006,
+        "url": "https://encrypted-tbn1.gstatic.com/shopping?q=tbn:ANd9GcQyMPBCmFkdvvSdN1AiCJCQ9-B7kIVriJd-Ich_bszorXEUUIaWtCN88Yb0kmLFCLw05gLylZ4&usqp=CAY"
+        },
+        "company": {
+        "id": 4907995,
+        "name": "CampSaver.com",
+        "address" : {
+            "country": "USA",
+            "state": "UTAH",
+            "city": "Nibley",
+            "street_address": "2280 Heritage Dr",
+            "zip": 84321
+            }
+        },
+        "category": "Lantern",
+        "review": {
+        "reviews": [
+            {
+            "reviewer_name": "cabelas.com",
+            "review": "I bought this lantern for camping, a fantastic idea that you can essentially break the lantern apart and everyone grab a piece. No more having the kids fight over the light. Long battery life, and I purchased the rechargeable battery pack as well. This is the second re-chargeable Coleman lantern I have purchased this year, and I have been VERY pleased with each purchase.",
+            "date": "2014-10-04",
+            "rate": 5
+            },{
+            "reviewer_name": "thesportsauthority.com",
+            "review": "Gave as gift. Recipient very pleased",
+            "date": "2016-02-05",
+            "rate": 4
+            }
+        ],
+        "averageRate": 4.2
+        }
+    },
+    {
+        "id": 7890007,
+        "price": {
+        "value": 71.99,
+        "currency": "USD"
+        },
+        "name": "Coleman Lantern",
+        "description": "Uses 8 D batteries, not included. Imported.",
+        "keywords": [],
+        "copy": "Coleman Quad LED Lantern",
+        "image": {
+        "id": 8540007,
+        "url": "https://encrypted-tbn3.gstatic.com/shopping?q=tbn:ANd9GcRNTfRuy1Ds8s7yJD_8PLCB2gIbPHF9H-rTBka9-Dkd0_uTD-6ZguxiB2A39wnFOHLOLWzsu_U&usqp=CAY"
+        },
+        "company": {
+            "id": 4907995,
+            "name": "CampSaver.com",
+            "address" : {
+                "country": "USA",
+                "state": "UTAH",
+                "city": "Nibley",
+                "street_address": "2280 Heritage Dr",
+                "zip": 84321
+            }
+        },
+        "category": "Lantern",
+        "review": {
+        "reviews": [
+            {
+            "reviewer_name": "walmart.com",
+            "review": "This Lantern is very good at handling power outages and other low lighting issues. Since it has 4 separate removable light units that can be carried or placed in different locations as needed. When you put them back onto the base nit, the lights recharge so they are ready for the next time you need them. OR you can simply use the entire lantern as a single unit. Lightweight and easy to handle, it is a very good light.",
+            "date": "2016-04-02",
+            "rate": 4
+            },{
+            "reviewer_name": "MidwayUSA",
+            "review": "outstanding lantern, started using this lantern when my son was a cub scout! The first set of batteries lasted for a year, the 8 d batteries in the base charge the NICADS in the four removable lanterns. When they no longer hold a charge it is telling you it is time to change the main batteries, but the lantern will continue to work for days after this! We were able to send one lantern with the boys in each tent, and recharge them the next day because you know they left the light on all night! he is now a boy scout and the lantern convinced out troop to go to LED lanterns from propane! make sure to push the grey release button removing and placing the lanterns in the main base. we now have two! Hatteras Kid",
+            "date": "2014-08-21",
+            "rate": 5
+            }
+        ],
+        "averageRate": 4.7
+        }
+        },
+        {
+        "id": 7890008,
+        "price": {
+        "value": 85.99,
+        "currency": "USD"
+        },
+        "name": "Sintechno Camping Portable Lantern",
+        "description": "Sintechno Inc This portable emergency / camp lantern uses 36 white SMD Super Bright LED's which can be recharged by both included solar panel and AC power adapter.",
+        "keywords": [],
+        "copy": "Sintechno 2-in-1 Solar Bright LED Emergency Camping Portable Lantern",
+        "image": {
+        "id": 8540008,
+        "url": "https://encrypted-tbn0.gstatic.com/shopping?q=tbn:ANd9GcREYcHVgrBWpAew2bVIrZB4mu7rvhKm-ijxtkSmBvizfVW2NGC--h6jlCX-Gbc7S9rwihlJ7C9D&usqp=CAY"
+        },
+        "company": {
+            "id": 4907996,
+            "name": "Overstock.com",
+            "address" : {
+                "country": "USA",
+                "state": "UTAH",
+                "city": "Midvale",
+                "street_address": "799 Coliseum Way",
+                "zip": 84047
+            }
+        },
+        "category": "Lantern",
+        "review": {
+        "reviews": [],
+        "averageRate": 0.0
+        }
+        },
+        
+  {
+        "id": 7890009,
+        "price": {
+        "value": 89.79,
+        "currency": "USD"
+        },	
+        "name": "Coleman Lantern",
+        "description": "Light up your next outdoor gathering with a super-bright lantern! The versatile Premium Powerhouse runs on either Coleman Liquid fuel or unleaded gasoline and uses less fuel than lanterns powered by propane. Delivering an extra-bright 1107 lumens on high, the Coleman Premium Powerhouse Dual Fuel Lantern features an adjustable dimmer knob to allow the perfect amount of light for your campsite, barbecue and more!",
+        "keywords": [],
+        "copy": "Coleman Dual Fuel 2-Mantle Powerhouse Lantern 64566500",
+        "image": {
+        "id": 8540009,
+        "url": "https://encrypted-tbn2.gstatic.com/shopping?q=tbn:ANd9GcRrT8bmktPPrwX1z974P8DriLGtyegoXAX90JRrStaYCnIwC_g6Nng2gyucVrk8WNAN3TkkfBb2&usqp=CAY"
+        },
+        "company": {
+            "id": 4907995,
+            "name": "CampSaver.com",
+            "address" : {
+                "country": "USA",
+                "state": "UTAH",
+                "city": "Nibley",
+                "street_address": "2280 Heritage Dr",
+                "zip": 84321
+            }
+        },
+        "category": "Lantern",
+        "review": {
+            "reviews": [
+                {
+                "reviewer_name": "ebay.com",
+                "review": "There's a reason why Coleman has been making these 'boring' products for SIXTY YEARS. They are the MOST economical lanterns (and stoves), and the BRIGHTEST lanterns and HOTTEST stoves. When I want to light up a campsite with 6 tents full of YMCA adventure guides, I pump up this lantern, light it, and hoist it 8 feet in the air. Then I can put away my 12v 8xD 2-bulb flourescent lamp. A gallon of Coleman white-gas (naptha) fuel has lasted us for 3 years of camping (about 12 campouts or 24 days/nights total - cooking and using this lantern.) This lamp gives enough light to throw a football or frisbee a decent distance (30 ft) at night. Best of all : EVERYONE ELSE WILL BE JEALOUS !!!",
+                "date": "2016-04-23",
+                "rate": 5
+                },{
+                "reviewer_name": "walmart.com",
+                "review": "This lantern is almost twice as bright as any I have owned. And the fact that it can run on unleaded gas from the corner gas station, makes it an awesome lantern. The convenience of using gas is a great plus. It makes it quick and easy. The lantern is sturdy and well built. The Coleman design has not changed a lot over time but if it aint broke, don't fix it. It comes with a small filtered funnel to aid in filling as well as two mantles to get you started. I got this powerhouse on sale and is has been well worth it.",
+                "date": "2015-08-09",
+                "rate": 4.9
+                }
+            ],
+            "averageRate": 4.9
+        }      
+     }   
+        
+]]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </otherwise>
+        </choice>
+    </flow>
+    <flow name="post:\catalog\products:application\json:catalog-config">
+        <ee:transform doc:name="Transform Message" doc:id="c2b724ac-b2f0-4acb-a1db-67f841fa5a91">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    "id": 7890001,
+    "price": {
+      "value": 47.95,
+      "currency": "USD"
+    },
+    "name": "Eureka Cypress Sleeping Bag",
+    "description": "Made from the same warm material as the adult size for backpacking and family camping, Eureka's Cyprus Junior is a three-season sleeping bag with toasty ThermaShield insulation that's temperature rated at 15°F. The boy-specific junior size and fit reduces unnecessary weight and bulk while on the trail.",
+    "keywords": [
+      "Eureka!",
+      "Children's",
+      "Mummy",
+      "15° F",
+      "With Pocket",
+      "With Stuff Sack"
+    ],
+    "copy": "Eureka 15°F Cypress Junior Sleeping Bag - Mummy (for Boys) - Grey/Green ( )",
+    "image": {
+      "id": 8540001,
+      "url": "https://github.com/connect2018/product-images/blob/master/sleepingbag_green.png?raw=true"
+    },
+    "company": {
+      "id": 4907999,
+      "name": "The-House.com",
+      "address": {
+        "country": "USA",
+        "state": "MINNESOTA",
+        "city": "Minneapolis",
+        "street_address": "200 S Owasso Blvd E St Paul",
+        "zip": 55117
+      }
+    }
+ }]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+    <flow name="delete:\catalog\products\(product_id):catalog-config">
+        <logger level="INFO" message="delete:\catalog\products\(product_id):catalog-config" />
+    </flow>
+</mule>

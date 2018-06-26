@@ -1,0 +1,145 @@
+#%RAML 1.0
+baseUri: https://mocksvc.mulesoft.com/mocks/d18849b8-cb25-4c55-b988-b187280c0cec # 
+version: v4.1
+title: social-recommendations-api
+mediaType: application/json
+
+uses:
+  traits: exchange_modules/a6d4cdc7-ecb0-4315-a6a6-216c71ba0b54/commons-traits/1.1.0/traits.raml
+
+types:
+  IsVotesBlocked:
+    properties:
+      blocked: boolean
+  ArtPiece:
+    type: string
+  PaintColor:
+    type: string
+  Choices:
+    properties:
+      artPieces: ArtPiece[]
+      paintColors: PaintColor[]
+  ChoiceResults:
+    properties:
+      artPiece: ArtPiece
+      paintColor: PaintColor
+      count: integer
+      latest: string[]
+  Recommendation:
+    properties:
+      clientId:
+      name:
+      choice:
+        type: integer[]
+        minItems: 2
+        maxItems: 2
+  Personalized:
+    properties:
+      personalized:
+        type: boolean
+        example: false
+        
+/choices:
+  get:
+    description: Get the choices available to recommenders
+    responses:
+      200:
+        body:
+          type: Choices
+          example:
+            artPieces:
+            - "https://afremov.com/images/product/image_20.jpeg"
+            - "https://afremov.com/images/product/image_584.jpeg"
+            - "https://afremov.com/images/product/LOVE-BY-THE-PALETTE.jpg"
+            paintColors:
+            - "#FFFFFF"
+            - "#AAAAAA"
+            - "#CACACA"
+  put:
+    description: Set the choices available to recommenders
+    is: [ traits.secure ]
+    body:
+      type: Choices
+      example:
+        artPieces:
+        - "https://afremov.com/images/product/image_20.jpeg"
+        - "https://afremov.com/images/product/image_584.jpeg"
+        - "https://afremov.com/images/product/LOVE-BY-THE-PALETTE.jpg"
+        paintColors:
+        - "#FFFFFF"
+        - "#AAAAAA"
+        - "#CACACA"
+          
+    responses:
+      200:
+
+/recommendations:
+  post:
+    description: Submit a recommendation (vote)
+    responses: 
+      200:
+        body:
+          type: Recommendation
+          example:
+            clientId: cc1e0107-a292-4dd5-9479-f9d700fdc464
+            name: Henry
+            choice: [ 1, 0 ]
+  put:
+    description: |
+      Override all recommendations by setting the results 
+      according to this payload
+    is: [ traits.secure ]
+    body:
+      type: Recommendation[]
+      example: []
+    responses:
+      200:
+
+  /block:
+    put:
+      description: |
+        This operation changes the blocking vote status
+      is: [ traits.secure ]
+      body: 
+        type: IsVotesBlocked
+        example:
+          blocked: true
+      responses:
+        204:
+    get:
+      description: |
+        Retrieve the current block status
+      responses:
+        200:
+          body:
+            type: IsVotesBlocked
+            example:
+              blocked: false
+  /summary:
+    get:
+      responses: 
+        200:
+          body:
+            type: ChoiceResults[][]
+    /top:
+      get:
+        responses:
+          200:
+            body:
+              type: ChoiceResults
+
+/status:
+  get:
+    description: Get the overall status (personalized or not, for now)
+    responses:
+      200:
+        body: 
+          type: Personalized
+          example:
+            personalized: true
+  put:
+    description: Set the overall status (personalized or not, for now)
+    is: [ traits.secure ]
+    body: Personalized
+    responses: 
+      200:

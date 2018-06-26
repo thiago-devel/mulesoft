@@ -1,0 +1,631 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:catalog-api="http://www.mulesoft.org/schema/mule/catalog-api" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:java="http://www.mulesoft.org/schema/mule/java" xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns:product-finder="http://www.mulesoft.org/schema/mule/product-finder" xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting" xmlns:spring="http://www.springframework.org/schema/beans" xmlns:tls="http://www.mulesoft.org/schema/mule/tls" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.1.xsd  http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd http://www.mulesoft.org/schema/mule/catalog-api http://www.mulesoft.org/schema/mule/catalog-api/current/mule-catalog-api.xsd http://www.mulesoft.org/schema/mule/java http://www.mulesoft.org/schema/mule/java/current/mule-java.xsd http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd http://www.mulesoft.org/schema/mule/product-finder http://www.mulesoft.org/schema/mule/product-finder/current/mule-product-finder.xsd">
+    <http:listener-config name="dynamic_shelf-api-httpListenerConfig" doc:name="HTTP Listener config">
+        <http:listener-connection host="0.0.0.0" port="${https.port}" protocol="HTTPS">
+            <tls:context>
+                <tls:key-store type="jks" path="keystore.jks" keyPassword="password" password="password" />
+            </tls:context>
+        </http:listener-connection>
+    </http:listener-config>
+    <apikit:config name="dynamic_shelf-api-config" raml="dynamic_shelf-api.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" doc:name="Router" disableValidations="true"/>
+    <global-property doc:name="Global Property" doc:id="5cc586ba-fe96-4a69-97b4-d30d74cebb79" name="https.port" value="8082" />
+    <os:object-store name="Object_store" doc:name="Object store" doc:id="ad8f1fac-e718-4958-8c1f-09768991633f" persistent="false" />
+    <api-gateway:autodiscovery apiId="12136280" doc:name="API Autodiscovery" doc:id="2663210a-2bec-42a9-aac5-99dc882264a3" flowRef="dynamic_shelf-api-main" />
+    <catalog-api:config name="Catalog_API_Config" doc:name="Catalog API Config" doc:id="8ddeb7fd-7c61-4137-b327-7abb14488666" property_host="catalog-app.cloudhub.io" property_basePath="/api" />
+    <product-finder:config name="Product_finder_Config" doc:name="Product-finder Config" doc:id="5f9b204e-c7e1-422f-9326-515a08b6018b" property_host="product-finder.cloudhub.io" property_basePath="/api" />
+    <http:request-config name="PARTICLE_IO_Config" doc:name="HTTP Request configuration" doc:id="50a7d02f-f8e8-40ff-9426-4a01e7a73c1f" basePath="/v1" >
+		<http:request-connection protocol="HTTPS" host="api.particle.io" port="443" />
+	</http:request-config>
+	<flow name="dynamic_shelf-api-main">
+        <http:listener config-ref="dynamic_shelf-api-httpListenerConfig" path="/api/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <ee:transform doc:name="setting up vars to be accessed by all the flows" doc:id="e1d377ff-e092-4bfb-af06-7cb47b9e8bea">
+            <ee:message />
+            <ee:variables>
+                <ee:set-variable variableName="magicPASSWD"><![CDATA[%dw 2.0
+output application/java
+---
+"astro and max"]]></ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <apikit:router config-ref="dynamic_shelf-api-config" doc:name="APIkit Router" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:BAD_REQUEST" doc:name="On Error Propagate">
+                <ee:transform xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Bad request"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">400</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:METHOD_NOT_ALLOWED">
+                <ee:transform xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Method not allowed"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">405</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_ACCEPTABLE">
+                <ee:transform xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not acceptable"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">406</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:UNSUPPORTED_MEDIA_TYPE">
+                <ee:transform xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Unsupported media type"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">415</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_IMPLEMENTED">
+                <ee:transform xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not Implemented"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">501</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="dynamic_shelf-api-console">
+        <http:listener config-ref="dynamic_shelf-api-httpListenerConfig" path="/console/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:console config-ref="dynamic_shelf-api-config" doc:name="APIkit Console" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="put:\dynamic_shelf\droneDelivered:application\json:dynamic_shelf-api-config">
+        <choice doc:name="Choice">
+            <when expression="#[attributes.headers.authorization == vars.magicPASSWD]">
+                <flow-ref doc:name="putDynamicShelfDroneDeliveredSub_Flow" name="putDynamicShelfDroneDeliveredSub_Flow" />
+            </when>
+            <otherwise>
+                <ee:transform doc:name="Unauthorized" doc:id="672ee0ca-c09c-4afb-a259-19f061a2ac99">
+                    <ee:message />
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus"><![CDATA[%dw 2.0
+output application/java
+---
+401]]></ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </otherwise>
+        </choice>
+    </flow>
+    <sub-flow name="putDynamicShelfDroneDeliveredSub_Flow" doc:id="eef244cf-059c-4bde-898b-33064742f3ae">
+        <os:store doc:name="Store droneDelivered" doc:id="83b65f70-a7ac-43ee-ae2d-d90bc3f529a7" key="droneDelivered" objectStore="Object_store">
+            <os:value><![CDATA[#[payload.activated]]]></os:value>
+        </os:store>
+        <logger level="INFO" message="put:\dynamic_shelf\droneDelivered:application\json:dynamic_shelf-api-config" doc:name="Logger" />
+    </sub-flow>
+    <flow name="put:\dynamic_shelf\fanOn:application\json:dynamic_shelf-api-config">
+        <choice doc:name="Choice">
+            <when expression="#[attributes.headers.authorization == vars.magicPASSWD]">
+                <flow-ref doc:name="putDynamicShelfFanOnSub_Flow" name="putDynamicShelfFanOnSub_Flow" />
+            </when>
+            <otherwise>
+                <ee:transform doc:name="Unauthorized" doc:id="e5d894bd-8726-4d18-994c-36446e9a6263">
+                    <ee:message />
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus"><![CDATA[%dw 2.0
+output application/java
+---
+401]]></ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </otherwise>
+        </choice>
+    </flow>
+    <sub-flow name="putDynamicShelfFanOnSub_Flow" doc:id="465b5d5f-a02b-4a2a-aba9-47ce025b99ef">
+        <ee:transform doc:name="Transform Message" doc:id="d8ca51ff-ba61-4770-8b2b-cb813fdf8b2a" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+if (payload.activated == true) {
+	params: "1"
+} else {
+	params: "0"
+}]]></ee:set-payload>
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="activated" ><![CDATA[%dw 2.0
+output application/java
+---
+payload.activated]]></ee:set-variable>
+				<ee:set-variable variableName="fanNumber" ><![CDATA[%dw 2.0
+output application/java
+---
+payload.fanNumber]]></ee:set-variable>
+				<ee:set-variable variableName="deviceName" ><![CDATA[%dw 2.0
+output application/java
+---
+"IOTHolo" ++ (payload.fanNumber as String)]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<os:store doc:name="Store fanOn" doc:id="1ee2dc3a-7e80-4d17-a569-2655d1721841" key="fanOn" objectStore="Object_store">
+            <os:value><![CDATA[#[vars.activated]]]></os:value>
+        </os:store>
+        <http:request method="POST" doc:name="Call Particle.IO" doc:id="8a7e1882-5ba1-473d-8f9a-850357c11fdf" config-ref="PARTICLE_IO_Config" path="/devices/{deviceName}/holodisplay">
+			<http:headers ><![CDATA[#[output applicaton/java
+---
+{
+	"authorization" : "Bearer d5d3600dbd73d9acfb984110d6d7414a503bddca"
+}]]]></http:headers>
+			<http:uri-params ><![CDATA[#[output applicaton/java
+---
+{
+	deviceName : vars.deviceName
+}]]]></http:uri-params>
+		</http:request>
+		<choice doc:name="Choice" doc:id="8618b4e6-166f-4eff-9083-8389253f9ab4" >
+			<when expression="#[vars.activated == true]">
+                <ee:transform doc:name="Transform Message" doc:id="179cbdb4-7547-411b-90db-5864d023ff34" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+{
+	itemId: "87623",
+	location: 1,
+	change: "added"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<flow-ref doc:name="postDynamicShelfItemUpdatesSub_Flow" doc:id="61f45204-d417-4c1f-9176-168adc9e466e" name="postDynamicShelfItemUpdatesSub_Flow"/>
+			</when>
+		</choice>
+		<logger level="INFO" message="put:\dynamic_shelf\fanOn:application\json:dynamic_shelf-api-config" doc:name="Logger"/>
+    </sub-flow>
+    <sub-flow name="postDynamicShelfItemUpdatesSub_Flow" doc:id="bede2672-8364-4e21-806f-e46b90bed415">
+        <ee:transform doc:name="Transform Message" doc:id="9bfcb5b4-9a16-42ed-8f6b-3e44849044d9">
+            <ee:message />
+            <ee:variables>
+                <ee:set-variable variableName="location"><![CDATA[%dw 2.0
+output application/java
+---
+payload.location]]></ee:set-variable>
+                <ee:set-variable variableName="operation"><![CDATA[%dw 2.0
+output application/java
+---
+payload.change]]></ee:set-variable>
+                <ee:set-variable variableName="productId"><![CDATA[%dw 2.0
+output application/java
+---
+payload.itemId]]></ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <os:retrieve doc:name="Retrieve" doc:id="b58a203f-4428-4e85-b766-db84fbec83d1" key="locations" objectStore="Object_store" target="locations">
+            <os:default-value><![CDATA[#[
+			output application/java
+			---
+			""
+]]]></os:default-value>
+        </os:retrieve>
+        <choice doc:name="Choice" doc:id="270658d3-5652-4e76-a7da-11c9b5afde29">
+            <when expression="#[isEmpty(vars.locations)]">
+                <java:new doc:name="New" doc:id="633ae918-9ab5-4ce8-a046-c7e5315b11bf" class="java.util.ArrayList" constructor="ArrayList()" target="locations" />
+                <scripting:execute doc:name="Execute" doc:id="96ee9250-d726-4bb1-bb80-8d750ee2f8e0" engine="groovy">
+                    <scripting:code>for (i = 0; i &lt;6; i++) {
+vars.locations.add(&quot;&quot;)
+}</scripting:code>
+                </scripting:execute>
+            </when>
+            <otherwise>
+                <logger level="INFO" doc:name="Logger" doc:id="57eaade3-b8dc-4b15-8151-b71b5fd25a73" />
+            </otherwise>
+        </choice>
+        <java:new doc:name="New" doc:id="89097777-49e2-438a-9821-374d1faa5293" class="com.mulesoft.shelf.Product" constructor="Product()" target="product" />
+        <catalog-api:get-product-by-product-id doc:name="Get product by product id" doc:id="fbff098b-6a3e-4bce-b2ad-c8faac8d923a" config-ref="Catalog_API_Config" product-id="#[vars.productId]" />
+        <ee:transform doc:name="Transform Message" doc:id="67720c68-8ef4-4fc9-96e3-87cf5240804f">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+{
+	id: payload.id as String,
+	name: payload.name,
+	description: payload.description,
+	price: payload.price,
+	discountedPrice: {
+		value: payload.discountedPrice.value
+	} default null,
+	image: payload.image
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+        <scripting:execute doc:name="Add Product to location" doc:id="dd87bf6c-ace3-4e77-89b1-17ccf5c7cc4c" engine="groovy">
+            <scripting:code>def product = vars.product
+def productString = new java.lang.String()
+product.setId(payload.id)
+product.setName(payload.name)
+product.setDescription(payload.description)
+product.setPrice(payload.price.value)
+product.setDiscountedPrice(payload.discountedPrice.value)
+
+product.setImage(payload.image.url)
+if (vars.operation == &quot;added&quot;){
+	product.setCheckedOut(false)
+}
+else{
+	product.setCheckedOut(true)
+}
+
+productString = product
+vars.locations[vars.location] = productString</scripting:code>
+        </scripting:execute>
+        <os:store doc:name="Store" doc:id="7d9fdd1a-c12e-4514-8cec-a52f23f9592d" key="locations" objectStore="Object_store">
+            <os:value><![CDATA[#[vars.locations]]]></os:value>
+        </os:store>
+    </sub-flow>
+    <flow name="put:\dynamic_shelf\saying:application\json:dynamic_shelf-api-config">
+        <choice doc:name="Choice">
+            <when expression="#[attributes.headers.authorization == vars.magicPASSWD]">
+                <flow-ref doc:name="putDynamicShelfSayingSub_Flow" name="putDynamicShelfSayingSub_Flow" />
+            </when>
+            <otherwise>
+                <ee:transform doc:name="Unauthorized" doc:id="5eaaa658-9e04-4b49-b5ca-c3e6db583198">
+                    <ee:message />
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus"><![CDATA[%dw 2.0
+output application/java
+---
+401]]></ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </otherwise>
+        </choice>
+    </flow>
+    <sub-flow name="putDynamicShelfSayingSub_Flow" doc:id="444b3f49-e534-4bd9-a8b3-592c423252c0">
+        <os:store doc:name="Store saying" doc:id="c8c7bc0d-b3d3-40fc-b2c6-fa460a906dbc" key="saying" objectStore="Object_store">
+            <os:value><![CDATA[#[payload.text]]]></os:value>
+        </os:store>
+        <logger level="INFO" message="put:\dynamic_shelf\saying:application\json:dynamic_shelf-api-config" />
+    </sub-flow>
+    <flow name="get:\dynamic_shelf\status:dynamic_shelf-api-config">
+        <os:retrieve doc:name="Retrieving Saying" doc:id="79a1b6f0-6317-4907-9c1c-8e1ff4e9ecfc" key="saying" target="saying" objectStore="Object_store">
+			<os:default-value ><![CDATA[ ]]></os:default-value>
+        </os:retrieve>
+        <os:retrieve doc:name="Retrieve fanOn" doc:id="876ed2ae-731d-4efe-99e8-a0c828def267" key="fanOn" objectStore="Object_store" target="fanOn">
+            <os:default-value><![CDATA[false]]></os:default-value>
+        </os:retrieve>
+        <os:retrieve doc:name="Retrieve droneDelivered" doc:id="7db921dd-d183-4b05-93fd-4e64389b85d9" key="droneDelivered" objectStore="Object_store" target="droneDelivered">
+            <os:default-value><![CDATA[false]]></os:default-value>
+        </os:retrieve>
+        <os:retrieve doc:name="Retrieve locations" doc:id="5766b084-5d54-4334-8051-9ac3619e9cd8" key="locations" objectStore="Object_store" target="locations">
+            <os:default-value><![CDATA[#[
+			output application/json
+			---
+			["","","","","",""]
+]]]></os:default-value>
+        </os:retrieve>
+        <os:retrieve doc:name="Retrieve userDetected" doc:id="5f228482-bfef-491e-b4be-6bb03f156608" key="userDetected" objectStore="Object_store" target="userDetected">
+            <os:default-value><![CDATA[false]]></os:default-value>
+        </os:retrieve>
+        <os:retrieve doc:name="Retrieve display" doc:id="5f228482-bfef-491e-b4be-6bb03f156608" key="display" objectStore="Object_store" target="display">
+			<os:default-value><![CDATA[false]]></os:default-value>
+		</os:retrieve>
+		<os:retrieve doc:name="Retrieve shelvesStatus" doc:id="4450d72f-93a7-4051-9342-ff0f931c8b45" key="shelvesStatus" objectStore="Object_store" target="shelvesStatus">
+			<os:default-value><![CDATA[false]]></os:default-value>
+		</os:retrieve>
+		<ee:transform doc:name="Transform Message" doc:id="46aff14a-bc50-4aa6-a039-2ac3d1528d12" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="shevesActivated" ><![CDATA[%dw 2.0
+output application/java
+---
+if (vars.shelvesStatus == 'false')
+	"false"
+else
+	vars.shelvesStatus.activated]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<os:retrieve doc:name="Retrieve userRecognized" doc:id="4450d72f-93a7-4051-9342-ff0f931c8b45" key="userRecognized" objectStore="Object_store" target="userRecognizedStatus">
+			<os:default-value><![CDATA[false]]></os:default-value>
+		</os:retrieve>
+		<ee:transform doc:name="Transform Message" doc:id="46aff14a-bc50-4aa6-a039-2ac3d1528d12" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="userRecognized" ><![CDATA[%dw 2.0
+output application/java
+---
+if (vars.userRecognizedStatus == 'false')
+	"false"
+else
+	vars.userRecognizedStatus.activated]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<ee:transform xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd
+http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd
+http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd" doc:id="673e7163-77eb-44ab-8241-643cb828bb2a">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  locations: vars.locations,
+  fanOn: vars.fanOn as Boolean,
+  saying: trim(vars.saying as String),
+  droneDelivered: vars.droneDelivered as Boolean,
+  userDetected: vars.userDetected as Boolean,
+  display: vars.display as Boolean,
+  shelvesActivated: vars.shevesActivated as Boolean,
+  userRecognized: vars.userRecognized as Boolean
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+    <flow name="put:\dynamic_shelf\userDetected:application\json:dynamic_shelf-api-config">
+        <choice doc:name="Choice">
+            <when expression="#[attributes.headers.authorization == vars.magicPASSWD]">
+                <flow-ref doc:name="putDynamicShelfUserDetectedSub_Flow" name="putDynamicShelfUserDetectedSub_Flow" />
+            </when>
+            <otherwise>
+                <ee:transform doc:name="Unauthorized" doc:id="fd236541-ac60-47e0-9bd3-c32d5db23ac5">
+                    <ee:message />
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus"><![CDATA[%dw 2.0
+output application/java
+---
+401]]></ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </otherwise>
+        </choice>
+    </flow>
+    <flow name="put:\dynamic_shelf\display:application\json:dynamic_shelf-api-config">
+        <choice doc:name="Choice" doc:id="114cb032-8be2-4b74-b640-4e96259144d4" >
+			<when expression="#[attributes.headers.authorization == vars.magicPASSWD]" >
+				<flow-ref doc:name="putDynamicShelfDisplaySub_Flow" doc:id="4a7dcafd-3635-49e7-910b-571e523a3b91" name="putDynamicShelfDisplaySub_Flow"/>
+			</when>
+			<otherwise >
+				<ee:transform doc:name="Unauthorized" >
+					<ee:message />
+					<ee:variables >
+						<ee:set-variable variableName="httpStatus" ><![CDATA[%dw 2.0
+output application/java
+---
+401]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</otherwise>
+		</choice>
+    </flow>
+    <sub-flow name="putDynamicShelfDisplaySub_Flow" doc:id="8a18d0e1-761b-47dd-a9ef-aab4d9066dc8" >
+		<os:store doc:name="Store" doc:id="8b6644db-bcb4-4d79-bb3b-ff31b2557820" key="display" objectStore="Object_store">
+			<os:value><![CDATA[#[payload.activated]]]></os:value>
+		</os:store>
+		<logger level="INFO" message="put:\dynamic_shelf\display:application\json:dynamic_shelf-api-config" doc:name="Logger" />
+	</sub-flow>
+	<flow name="delete:\dynamic_shelf\items:dynamic_shelf-api-config">
+		<choice doc:name="Choice" doc:id="b08442a2-d7c0-4ca1-90fd-c931f63ad93d" >
+			<when expression="#[attributes.headers.authorization == vars.magicPASSWD]" >
+				<flow-ref doc:name="deleteItensSubiFlow" doc:id="cb8e7be1-6a32-42b6-aa0b-a5fc66c82358" name="deleteItensSubiFlow"/>
+			</when>
+			<otherwise >
+				<ee:transform doc:name="Unauthorized" doc:id="fd236541-ac60-47e0-9bd3-c32d5db23ac5" >
+					<ee:message />
+					<ee:variables >
+						<ee:set-variable variableName="httpStatus" ><![CDATA[%dw 2.0
+output application/java
+---
+401]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</otherwise>
+		</choice>
+    </flow>
+    <sub-flow name="deleteItensSubiFlow" doc:id="bd44c039-8446-4552-af02-339bc91365a2" >
+		<os:clear doc:name="Clear" doc:id="a72c1b7f-a8d5-4c3a-b17f-a1103c7e924f" objectStore="Object_store" />
+		<logger level="INFO" message="delete:\dynamic_shelf\items:dynamic_shelf-api-config" doc:name="Logger" />
+	</sub-flow>
+	<flow name="post:\dynamic_shelf\itemUpdates:application\json:dynamic_shelf-api-config">
+        <choice doc:name="Choice">
+            <when expression="#[attributes.headers.authorization == vars.magicPASSWD]">
+                <flow-ref doc:name="postDynamicShelfItemUpdatesSub_Flow" name="postDynamicShelfItemUpdatesSub_Flow" />
+            </when>
+            <otherwise>
+                <ee:transform doc:name="Unauthorized" >
+                    <ee:message />
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus"><![CDATA[%dw 2.0
+output application/java
+---
+401]]></ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </otherwise>
+        </choice>
+    </flow>
+    <sub-flow name="putDynamicShelfUserDetectedSub_Flow" doc:id="02d5156e-e477-4e73-8963-451bcd076106">
+        <os:store doc:name="Store" doc:id="8b6644db-bcb4-4d79-bb3b-ff31b2557820" key="userDetected" objectStore="Object_store">
+            <os:value><![CDATA[#[payload.activated]]]></os:value>
+        </os:store>
+        <logger level="INFO" message="put:\dynamic_shelf\userDetected:application\json:dynamic_shelf-api-config" />
+    </sub-flow>
+    <flow name="put:\dynamic_shelf\shelvesStatus:application\json:dynamic_shelf-api-config">
+		<choice doc:name="Choice" doc:id="7ee0a037-2f23-4834-91e3-093714c76830" >
+			<when expression="#[attributes.headers.authorization == vars.magicPASSWD ]" >
+				<flow-ref doc:name="putDynamic_shelfShelvesStatusSub_Flow" doc:id="4a7dcafd-3635-49e7-910b-571e523a3b91" name="putDynamic_shelfShelvesStatusSub_Flow" />
+			</when>
+			<otherwise >
+				<ee:transform doc:name="Unauthorized" doc:id="af3bd0e5-86c9-4ad6-a239-d4ca1b5cb842" >
+					<ee:message />
+					<ee:variables >
+						<ee:set-variable variableName="httpStatus" ><![CDATA[%dw 2.0
+output application/java
+---
+401]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</otherwise>
+		</choice>
+    </flow>
+    <sub-flow name="putDynamic_shelfShelvesStatusSub_Flow"  >
+
+        <ee:transform doc:name="Transform Message" doc:id="699dad54-eabe-46f9-983f-98b7d8ae0474">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+{
+	activated: payload.activated default false
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+        <os:store doc:name="Storing shelvesStatus" key="shelvesStatus" objectStore="Object_store" />
+
+    </sub-flow>
+    <flow name="get:\dynamic_shelf\shelvesStatus:dynamic_shelf-api-config">
+        <os:retrieve doc:name="Retrieve shelvesStatus" key="shelvesStatus" objectStore="Object_store">
+			<os:default-value ><![CDATA[ZERO]]></os:default-value>
+		</os:retrieve>
+		<ee:transform xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd
+http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd
+http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd" doc:id="576f09da-60ee-41e9-8c48-e56eb8651c16">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+if (payload == 'ZERO')
+	{
+	  activated: false
+	}
+else
+	payload]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+    <flow name="put:\dynamic_shelf\userRecognized:application\json:dynamic_shelf-api-config">
+        <choice doc:name="Choice">
+			<when expression="#[attributes.headers.authorization == vars.magicPASSWD ]" >
+				<flow-ref doc:name="putDynamic_shelfUserRecognizedSub_Flow"  name="putDynamic_shelfUserRecognizedSub_Flow" />
+			</when>
+			<otherwise >
+				<ee:transform doc:name="Unauthorized" >
+					<ee:message />
+					<ee:variables >
+						<ee:set-variable variableName="httpStatus" ><![CDATA[%dw 2.0
+output application/java
+---
+401]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</otherwise>
+		</choice>
+    </flow>
+    <sub-flow name="putDynamic_shelfUserRecognizedSub_Flow" >
+    		<ee:transform doc:name="Transform Message" >
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+{
+	activated: payload.activated default false
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+        <os:store doc:name="Storing userRecognized" key="userRecognized" objectStore="Object_store" />
+    </sub-flow>
+	<flow name="get:\dynamic_shelf\userRecognized:dynamic_shelf-api-config">
+        <os:retrieve doc:name="Retrieve userRecognized" key="userRecognized" objectStore="Object_store">
+			<os:default-value ><![CDATA[ZERO]]></os:default-value>
+		</os:retrieve>
+		<ee:transform xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd
+http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd
+http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd" doc:id="576f09da-60ee-41e9-8c48-e56eb8651c16">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+if (payload == 'ZERO')
+	{
+	  activated: false
+	}
+else
+	payload]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+</mule>

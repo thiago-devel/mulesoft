@@ -1,0 +1,10 @@
+{
+	"event": {"name":"custom_welcome", 
+		"data": {
+			"user_name": "Renan"
+		}
+	},
+	"lang": "en",
+	"sessionId": "123",
+	"query": "I want to list my orders"
+}

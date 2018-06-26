@@ -1,0 +1,564 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:java="http://www.mulesoft.org/schema/mule/java" xmlns:product-finder="http://www.mulesoft.org/schema/mule/product-finder" xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting" xmlns:spring="http://www.springframework.org/schema/beans" xmlns:tls="http://www.mulesoft.org/schema/mule/tls" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.1.xsd  http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd http://www.mulesoft.org/schema/mule/product-finder http://www.mulesoft.org/schema/mule/product-finder/current/mule-product-finder.xsd http://www.mulesoft.org/schema/mule/java http://www.mulesoft.org/schema/mule/java/current/mule-java.xsd http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd
+http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd">
+    <http:listener-config name="outcomes-api-httpsListenerConfig" doc:name="HTTP Listener config">
+        <http:listener-connection host="0.0.0.0" port="${https.port}" protocol="HTTPS">
+            <tls:context>
+                <tls:key-store type="jks" path="keystore.jks" keyPassword="password" password="password" />
+            </tls:context>
+        </http:listener-connection>
+    </http:listener-config>
+    <apikit:config name="outcomes-api-config" raml="outcomes-api.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" doc:name="Router" disableValidations="true"/>
+    <global-property doc:name="Global Property" doc:id="0be5c505-8094-4927-8e21-2d9e68918103" name="https.port" value="8082" />
+    <product-finder:config name="Product_finder_Config" doc:name="Product-finder Config" doc:id="ccc1d812-2f58-445f-a9dd-2ba836e6d450" property_host="product-finder.cloudhub.io" property_basePath="/api" />
+    <api-gateway:autodiscovery apiId="12383054" doc:name="API Autodiscovery" doc:id="ea9a5315-57ab-477a-abaf-da3b86a98331" flowRef="outcomes-api-main" />
+    <flow name="outcomes-api-main">
+        <http:listener config-ref="outcomes-api-httpsListenerConfig" path="/api/*" doc:name="Listener">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body><![CDATA[#[payload]]]></http:body>
+            </http:error-response>
+        </http:listener>
+        <ee:transform doc:name="setting up vars to be accessed by all the flows" doc:id="e1d377ff-e092-4bfb-af06-7cb47b9e8bea">
+			<ee:message />
+			<ee:variables>
+				<ee:set-variable variableName="magicPASSWD"><![CDATA[%dw 2.0
+output application/java
+---
+"astro and max"]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<apikit:router config-ref="outcomes-api-config" doc:name="APIkit Router"/>
+		<error-handler>
+            <on-error-propagate type="APIKIT:BAD_REQUEST">
+                <ee:transform xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Bad request"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">400</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:METHOD_NOT_ALLOWED">
+                <ee:transform xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Method not allowed"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">405</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_ACCEPTABLE">
+                <ee:transform xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not acceptable"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">406</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:UNSUPPORTED_MEDIA_TYPE">
+                <ee:transform xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Unsupported media type"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">415</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_IMPLEMENTED">
+                <ee:transform xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not Implemented"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">501</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="outcomes-api-console">
+        <http:listener config-ref="outcomes-api-httpsListenerConfig" path="/console/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body><![CDATA[#[payload]]]></http:body>
+                <http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:console config-ref="outcomes-api-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="get:\outcomes:outcomes-api-config">
+        <choice doc:name="Choice" doc:id="e0133d7f-7861-4b39-a821-27f156ee1b56">
+            <when expression="#[attributes.queryParams.keywords contains 'camping']">
+                <ee:transform xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd" doc:id="972174c2-8614-4f29-8b3e-b985392411c6" doc:name="Outcome 612009">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  id: 612009,
+  "type": "tent camping",
+  keywords: [
+    "camping",
+    "outdoor",
+    "tent",
+    "sleeping bag",
+    "lantern"
+  ],
+  questions: [
+    {
+      question: "Where are you going?",
+      id: 1001
+    },
+    {
+      question: "When are you going?",
+      id: 1002
+    },
+    {
+      question: "How many people on your group?",
+      id: 1003
+    },
+    {
+      question: "Any kids on the group?",
+      id: 1004
+    }
+  ]
+}]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </when>
+            <when expression="#[attributes.queryParams.keywords contains 'furniture']">
+                <ee:transform doc:name="Outcome 612010" doc:id="972174c2-8614-4f29-8b3e-b985392411c6" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  id: 612010,
+  "type": "furniture",
+  keywords: [
+    "furniture",
+    "kids",
+    "bedroom"
+  ],
+  questions: [
+    {
+      question: "Are you looking for furniture?",
+      id: 1005
+    },
+    {
+      question: "Ok, The furniture it's for a bedroom?",
+      id: 1006
+    },
+    {
+      question: "What's the age?",
+      id: 1007
+    },
+    {
+      question: "Is it a boy?",
+      id: 1008
+    }
+  ]
+}]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </when>
+            <otherwise>
+                <ee:transform doc:name="Transform Message" doc:id="60c89795-19df-4fec-b3ce-28e59f0923d6">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+}]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </otherwise>
+        </choice>
+    </flow>
+    <sub-flow name="postOutcomesSub_Flow" doc:id="d4939e7e-56d5-4ebc-ad0c-a79a0f54b737" >
+		<logger level="INFO" message="post:\outcomes\outcome:application\json:outcomes-api-config" doc:name="Logger " />
+		<ee:transform doc:name="Transform Message" doc:id="75234c79-9fa1-4b54-90a3-6493fe453a33">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	outcome_id: payload.outcome_id default "612009",
+	location: (attributes.headers.origin as String) ++ "/api/outcomes/" ++ (payload.outcome_id default "612009")
+}]]></ee:set-payload>
+            </ee:message>
+            <ee:variables>
+                <ee:set-variable variableName="httpStatus"><![CDATA[%dw 2.0
+output application/java
+---
+201]]></ee:set-variable>
+                <ee:set-variable variableName="outboundHeaders"><![CDATA[%dw 2.0
+output application/java
+---
+{
+	"x-content-location": (attributes.headers.origin as String) ++ "/api/outcomes/" ++ (payload.outcome_id default "612009")
+}]]></ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+	</sub-flow>
+	<flow name="post:\outcomes:application\json:outcomes-api-config">
+		<choice doc:name="Choice" doc:id="160e57cb-b7d3-4d9c-83f8-f4d7426ebd9e" >
+			<when expression="#[attributes.headers.authorization == vars.magicPASSWD]" >
+				<flow-ref doc:name="postOutcomesSub_Flow" doc:id="974908e5-42af-4ef5-a503-4a7489e5ed85" name="postOutcomesSub_Flow"/>
+			</when>
+			<otherwise >
+				<ee:transform doc:name="Unauthorized" doc:id="a3102554-da03-45d1-b95c-62702d4df5f5" >
+					<ee:message />
+					<ee:variables >
+						<ee:set-variable variableName="httpStatus" ><![CDATA[%dw 2.0
+output application/java
+---
+401]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</otherwise>
+		</choice>
+    </flow>
+    <flow name="get:\outcomes\(outcome_id):outcomes-api-config">
+        <logger level="INFO" message="get:\outcomes\outcome\(outcome_id):outcomes-api-config" doc:name="Logger" />
+        <choice doc:name="Choice" doc:id="fc6837c5-cd6a-464c-90f1-c485ab6149dc">
+            <when expression="#[(attributes.uriParams.outcome_id as String) == '612009']">
+                <ee:transform doc:name="Setting up outcomes 612009 product list" doc:id="49e634dd-0e05-4356-89fb-9e74203f574c">
+                    <ee:message />
+                    <ee:variables>
+                        <ee:set-variable variableName="productIDs"><![CDATA[%dw 2.0
+output application/java
+---
+[
+	{
+            "productID": 7890001,
+            "link": "https://www.opticsplanet.com/eureka-cypress-15-deg-jr-sleeping-bag.html"
+        },
+        {
+            "productID": 7890013,
+            "link": "https://www.bestbuy.com/site/mattel-uno-card-game-multi/4189414.p?skuId=4189414&ref=212&loc=1&gclid=CLGLpaWpsdoCFQXefgodwe8BQQ&gclsrc=ds"
+        },
+        {
+            "productID": 7890014,
+            "link": "https://www.walmart.com/ip/3-Gallon-Stackable-Water-Bottle/180676866?wmlspartner=wlpa&selectedSellerId=0&adid=22222222227069156862&wmlspartner=wmtlabs&wl0=&wl1=g&wl2=c&wl3=176561934607&wl4=pla-280895208199&wl5=9031944&wl6=&wl7=&wl8=&wl9=pla&wl10=8175035&wl11=online&wl12=180676866&wl13=&veh=sem"
+        },
+        {
+            "productID": 7890015,
+            "link": "https://www.candywarehouse.com/campfire-mini-marshmallows-packs-12-piece-box/?gclid=CjwKCAjwwbHWBRBWEiwAMIV7E6BY_79vtXjPbF1wAhoaoZLEpiQlEncVmUUCTxadAS63x96-1K5g1hoC5lEQAvD_BwE"
+        },
+        {
+            "productID": 7890016,
+            "link": "https://www.llbean.com/llb/shop/514485?originalProduct=57230&productId=939399&attrValue_0=Deep%20Forest&pla1=0&mr:device=c&mr:adType=plaonline&qs=3125182_google&lsft=qs:3125182_google,product:0GKD150000&gclid=CjwKCAjwwbHWBRBWEiwAMIV7E9lLzcCOvixfdCqBh0zOHAthdk4AolNsvO7p-OOMf0q9EDDDk2WH1xoC1mIQAvD_BwE&gclsrc=aw.ds&dclid=CNeElqK8sdoCFZJ2Ygodg7AEyA"
+        },
+        {
+            "productID": 7890017,
+            "link": "https://www.walmart.com/ip/Wilson-Traditional-Soccer-Ball/9854920?wmlspartner=wlpa&adid=22222222227029515237&wl0=&wl1=g&wl2=c&wl3=49182447512&wl4=pla-71924460414&wl5=9031944&wl6=&wl7=&wl8=&wl9=pla&wl10=8175035&wl11=online&wl12=9854920&wl13=&veh=sem"
+        },
+        {
+            "productID": 7890018,
+            "link": "https://www.target.com/p/repel-family-dry-aerosol-4-oz/-/A-14782293?ref=tgt_adv_XS000000&AFID=google_pla_df&CPNG=PLA_Sports+Shopping&adgroup=SC_Sports&LID=700000001170770pgs&network=g&device=c&location=9031944&gclid=CjwKCAjwwbHWBRBWEiwAMIV7E-SMX2Ioi-cdwnxjRMwRIXTyKnLSo9IGInsdYRmZRkOYceTMSKgVoRoCV3EQAvD_BwE&gclsrc=aw.ds"
+        },
+        {
+            "productID": 7890019,
+            "link": "http://www.acehardware.com/product/index.jsp?productId=71043076&KPID=22159723&cid=CAPLA:G:Shopping_-_Hearth_Products_&_Accs=&pla=pla_22159723&k_clickid=98dfbd6f-978b-417b-a575-e7467f145b88&gclid=CjwKCAjwwbHWBRBWEiwAMIV7E8En3BcXY2OWQ31IHQEqY3kJo7EcXMzCKW0WAPnyCcwNoqLq0t2AxBoCbiQQAvD_BwE"
+        }
+]]]></ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+                <flow-ref doc:name="outcomes-apiSub_Flow" doc:id="d87f5b98-9819-4403-ab13-5e46ba62e120" name="outcomes-apiSub_Flow" />
+                <ee:transform doc:name="Transform Message" doc:id="4a6e0e3d-c5f8-44b5-9414-480da395d42f">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+vars.fullProductList]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+                <ee:transform doc:name="Transform Message" doc:id="bd6a9ca4-1967-44ed-96b5-3456ddf2b282">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+var categories = vars.fullProductList.category
+---
+{
+    "outcome_id": 612009,
+    "type": "camping",
+    "answers_keywords": [
+        {
+            "id": 2001,
+            "question_id": 1001,
+            "answer": "Russian River"
+        },
+        {
+            "id": 2002,
+            "question_id": 1002,
+            "answer": "in two weeks"
+        },
+        {
+            "id": 2003,
+            "question_id": 1003,
+            "answer": "three"
+        },
+        {
+            "id": 2004,
+            "question_id": 1004,
+            "answer": "yes, 1 boy"
+        }
+    ],
+    "profile": "family outing",
+    "categories": vars.fullProductList filter (
+    		categories contains $.category
+    ) map (product, index) -> {
+    		description: product.category,
+		recommended_items: vars.fullProductList filter (
+	    		product.category == $.category
+	    		and product.id == $.id
+	    ) map (pProduct, iIndex) -> {
+	    		id: pProduct.id,
+          	name: pProduct.name,
+          	description: pProduct.description,
+          	image: pProduct.image,
+          	price: pProduct.price,
+          	link: pProduct.link
+	    }
+    }
+}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="outboundHeaders"><![CDATA[%dw 2.0
+output application/java
+---
+{
+	"Content-Type": "application/json"
+}]]></ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </when>
+            <when expression="#[(attributes.uriParams.outcome_id as String) == '612010']">
+                <ee:transform doc:name="Setting up outcomes 612010 product list" doc:id="49e634dd-0e05-4356-89fb-9e74203f574c">
+                    <ee:message />
+                    <ee:variables>
+                        <ee:set-variable variableName="productIDs"><![CDATA[%dw 2.0
+output application/java
+---
+[
+	{
+            "productID": 7890020,
+            "link": "https://www.overstock.com/Home-Garden/Futons/2026/subcat.html?featuredproduct=20254395&featuredoption=7371399&kid=9553000357392&track=pspla&ci_src=17588969&ci_sku=13203855-000-004&cnc=US&cid=271143&type=pla&gclid=EAIaIQobChMIuYOTotfk2gIVkMJkCh0VRANuEAkYIyABEgJVKfD_BwE&gclsrc=aw.ds&dclid=CPXS3IfY5NoCFQTnZAodGFYE9Q"
+        },
+        {
+            "productID": 7890021,
+            "link": "https://www.google.com/aclk?sa=l&ai=DChcSEwiLotSvh-XaAhUQxGQKHTLcAFkYABAqGgJwag&sig=AOD64_2YxOmEwmfLOl54bepatmXue8tluA&ctype=5&q=&ved=0ahUKEwjotNGvh-XaAhUhrlQKHR_6AG8QpysIzwE&adurl="
+        },
+        {
+            "productID": 7890022,
+            "link": "https://www.google.com/aclk?sa=l&ai=DChcSEwi1jpuuh-XaAhUJxmQKHauIAUwYABAbGgJwag&sig=AOD64_0Dx3D6fhdiVhPlejrwV76cswkrvw&ctype=5&q=&ved=0ahUKEwjcmZiuh-XaAhUJilQKHQsAC9cQwzwIQg&adurl="
+        },
+        {
+            "productID": 7890023,
+            "link": "https://www.google.com/aclk?sa=l&ai=DChcSEwijt9mth-XaAhUCxGQKHYyqD_0YABBLGgJwag&sig=AOD64_313CcwOLA3yRHWYVaP_aYAD6pZeg&ctype=5&q=&ved=0ahUKEwjCqdath-XaAhWFiVQKHQFCDsoQwzwIngM&adurl="
+        },
+        {
+            "productID": 7890024,
+            "link": "https://www.google.com/aclk?sa=l&ai=DChcSEwjhxsnqiOXaAhUMxmQKHaheDdQYABAfGgJwag&sig=AOD64_2QzSfhbKI3TUBWBscdNc1oYmis0Q&ctype=5&q=&ved=0ahUKEwiWpcbqiOXaAhWLFHwKHd2cCkAQwzwIqAE&adurl="
+        }
+]]]></ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+                <flow-ref doc:name="outcomes-apiSub_Flow" doc:id="aa8f7cd0-64b6-4eb8-ac99-8fcafa7741d7" name="outcomes-apiSub_Flow" />
+                <ee:transform doc:name="Transform Message" doc:id="4a6e0e3d-c5f8-44b5-9414-480da395d42f">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+vars.fullProductList]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+                <ee:transform doc:name="Transform Message" doc:id="bd6a9ca4-1967-44ed-96b5-3456ddf2b282">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+var categories = vars.fullProductList.category
+---
+{
+    "outcome_id": 612010,
+    "type": "furniture",
+    "answers_keywords": [
+        {
+            "id": 2005,
+            "question_id": 1005,
+            "answer": "yes"
+        },
+        {
+            "id": 2006,
+            "question_id": 1006,
+            "answer": "yes"
+        },
+        {
+            "id": 2007,
+            "question_id": 1007,
+            "answer": "nine"
+        },
+        {
+            "id": 2008,
+            "question_id": 1008,
+            "answer": "yes"
+        }
+    ],
+    "profile": "family outing",
+    "categories": vars.fullProductList filter (
+    		categories contains $.category
+    ) map (product, index) -> {
+    		description: product.category,
+		recommended_items: vars.fullProductList filter (
+	    		product.category == $.category
+	    		and product.id == $.id
+	    ) map (pProduct, iIndex) -> {
+	    		id: pProduct.id,
+          	name: pProduct.name,
+          	description: pProduct.description,
+          	image: pProduct.image,
+          	price: pProduct.price,
+          	link: pProduct.link
+	    }
+    }
+}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="outboundHeaders"><![CDATA[%dw 2.0
+output application/java
+---
+{
+	"Content-Type": "application/json"
+}]]></ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </when>
+            <otherwise>
+                <ee:transform doc:name="Transform Message" doc:id="dea75902-ad16-4d90-96f8-0fae7f6a047d">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+}]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </otherwise>
+        </choice>
+    </flow>
+    <flow name="delete:\outcomes\(outcome_id):outcomes-api-config">
+		<choice doc:name="Choice" doc:id="df42bcb1-f737-4966-b449-b425fa24419a" >
+			<when expression="#[attributes.headers.authorization == vars.magicPASSWD]" >
+				<flow-ref doc:name="deleteOutComesSub_Flow" doc:id="9957ad9a-1816-4583-b778-5bc7cfe7ebe9" name="deleteOutComesSub_Flow"/>
+			</when>
+			<otherwise >
+				<ee:transform doc:name="Unauthorized" doc:id="a3102554-da03-45d1-b95c-62702d4df5f5" >
+					<ee:message />
+					<ee:variables >
+						<ee:set-variable variableName="httpStatus" ><![CDATA[%dw 2.0
+output application/java
+---
+401]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</otherwise>
+		</choice>
+    </flow>
+    <sub-flow name="deleteOutComesSub_Flow" doc:id="94f9cdde-9cfb-4005-af63-b35ed2f9804e" >
+		<logger level="INFO" message="delete:\outcomes\(outcome_id):outcomes-api-config" doc:name="Logger" />
+	</sub-flow>
+	<sub-flow name="outcomes-apiSub_Flow" doc:id="26370f07-7c9c-45ec-bfa8-bfd1722d0418">
+        <java:new doc:name="New fullProductList {as an ArrayList}" class="java.util.ArrayList" constructor="ArrayList()" target="fullProductList" doc:id="e119d918-9c13-4d57-b815-95e1a0ef3e3f" />
+        <foreach doc:name="For Each" collection="#[vars.productIDs]">
+            <ee:transform doc:name="Outcome Product" doc:id="0a7f8662-46a9-412d-8738-2fd53dd395a7">
+                <ee:message />
+                <ee:variables>
+                    <ee:set-variable variableName="productID"><![CDATA[%dw 2.0
+output application/java
+---
+payload.productID]]></ee:set-variable>
+                    <ee:set-variable variableName="link"><![CDATA[%dw 2.0
+output application/java
+---
+payload.link]]></ee:set-variable>
+                </ee:variables>
+            </ee:transform>
+            <product-finder:get-product-by-product-id doc:name="Get product by product id" doc:id="d0ec45d6-6aee-46ed-b583-591d21c8f35a" product-id="#[vars.productID]" config-ref="Product_finder_Config" />
+            <ee:transform doc:name="Product Outcome" doc:id="be3cd198-f105-49d0-a4bd-a10ba4af5212">
+                <ee:message>
+                    <ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+{
+	id: payload.id,
+	price: payload.price,
+	description: payload.description,
+	name: payload.copy,
+	image: payload.image,
+	category: payload.category,
+	quantity: payload.quantity,
+	location: payload.location,
+	link: vars.link
+}]]></ee:set-payload>
+                </ee:message>
+            </ee:transform>
+            <scripting:execute doc:name="Execute" doc:id="610924ac-1803-4571-ae38-4c8454be0828" engine="Groovy">
+				<scripting:code >vars.fullProductList.add(payload)</scripting:code>
+			</scripting:execute>
+        </foreach>
+    </sub-flow>
+</mule>

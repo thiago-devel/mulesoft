@@ -1,0 +1,20 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<types:mule xmlns:types="http://www.mulesoft.org/schema/mule/types">
+  <types:catalog>
+    <types:type name="newProductExample" format="json">
+      <types:example format="json" location="examples/newProductExample.json"/>
+    </types:type>
+    <types:type name="catalogProductExample" format="json">
+      <types:example format="json" location="examples/catalogProductExample.json"/>
+    </types:type>
+  </types:catalog>
+  <types:enrichment select="#acc10087-b383-4e03-be9d-c487c3932866">
+    <types:processor-declaration>
+      <types:input-event>
+        <types:message>
+          <types:payload type="newProductExample"/>
+        </types:message>
+      </types:input-event>
+    </types:processor-declaration>
+  </types:enrichment>
+</types:mule>

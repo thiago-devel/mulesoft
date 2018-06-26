@@ -1,0 +1,58 @@
+#%RAML 1.0
+version: v1
+title: chat-api
+
+types:
+  message:
+    properties:
+      username: string
+      text:
+      destination: string
+      
+/messages:
+  post:
+    description: Post a message
+    headers:
+      Authorization:    
+    body:
+      application/json:
+        type:
+    responses: 
+      200:
+        body:
+          application/json:
+            type: message
+            example:
+              {  "destination": "bot",
+                "text": "I want to change my orders",
+                "username": "uri"
+              }
+  get: 
+    description: Gets the list of messages
+    queryParameters: 
+      userName: string
+    responses: 
+      200:
+        body:
+          application/json:
+            type: message[]
+  put: 
+    description: Set the list of messages
+    headers:
+      Authorization:
+    body:
+      application/json:
+        type: message[]
+        example: [
+          {
+        "destination": "bot",
+        "text": "I want to change my orders",
+        "username": "uri"
+        },{
+        "destination": "uri",
+        "text": "Sure, this is a list of orders",
+        "username": "bot"
+        }
+        ]
+    responses: 
+      204:
